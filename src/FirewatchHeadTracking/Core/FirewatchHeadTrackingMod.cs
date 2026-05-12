@@ -15,7 +15,7 @@ namespace FirewatchHeadTracking
     public sealed class FirewatchHeadTrackingMod : MelonMod
     {
         public const string ModName = "Firewatch Head Tracking";
-        public const string ModVersion = "0.0.0";
+        public const string ModVersion = "0.1.0";
 
         public static FirewatchHeadTrackingMod Instance { get; private set; }
 
