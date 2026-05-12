@@ -1,0 +1,23 @@
+[workspace]
+name = "firewatch-head-tracking"
+version = "0.0.0"
+description = "Head tracking mod for Firewatch with aim decoupling"
+channels = ["conda-forge"]
+platforms = ["win-64"]
+
+[tasks]
+sync = "git submodule update --remote cameraunlock-core"
+setup = "powershell -ExecutionPolicy Bypass -File scripts/setup-libs.ps1"
+restore = { cmd = "dotnet restore src/FirewatchHeadTracking/FirewatchHeadTracking.csproj", depends-on = ["setup"] }
+build = { cmd = "dotnet build src/FirewatchHeadTracking/FirewatchHeadTracking.csproj -c Release", depends-on = ["restore"] }
+# Bump vendored mod-loader copies to latest upstream within pinned range.
+# Manual; commit the result. CI does not run this.
+update-deps = "powershell -ExecutionPolicy Bypass -File scripts/update-deps.ps1"
+install = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/deploy.ps1 Release", depends-on = ["build"] }
+uninstall = "scripts\\uninstall.cmd"
+package = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/package-release.ps1", depends-on = ["build"] }
+clean = "dotnet clean src/FirewatchHeadTracking/FirewatchHeadTracking.csproj"
+release = "powershell -ExecutionPolicy Bypass -File scripts/release.ps1"
+
+# Local helper: validate release readiness without running the release.
+validate-release = "powershell -ExecutionPolicy Bypass -File scripts/validate-release.ps1"

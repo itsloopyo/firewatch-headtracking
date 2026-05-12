@@ -1,0 +1,267 @@
+name: Release
+run-name: "Release ${{ github.ref_name }}"
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  release:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          submodules: true
+
+      - name: Extract version from tag
+        id: version
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          if ($tag -notmatch '^v(\d+\.\d+\.\d+)$') {
+            Write-Host "::error::Tag format invalid. Use semantic versioning: v1.2.3"
+            exit 1
+          }
+          $version = $matches[1]
+          echo "version=$version" >> $env:GITHUB_OUTPUT
+          echo "tag=$tag" >> $env:GITHUB_OUTPUT
+          Write-Host "Version: $version"
+
+      - name: Validate version matches manifest.json
+        shell: pwsh
+        run: |
+          $manifest = Get-Content "manifest.json" -Raw | ConvertFrom-Json
+          $manifestVersion = $manifest.version
+          $tagVersion = "${{ steps.version.outputs.version }}"
+
+          Write-Host "manifest.json version: $manifestVersion"
+          Write-Host "Tag version: $tagVersion"
+
+          if ($manifestVersion -ne $tagVersion) {
+            Write-Host "::error::Version mismatch! Tag is v$tagVersion but manifest.json has $manifestVersion"
+            exit 1
+          }
+          Write-Host "Version matches!" -ForegroundColor Green
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Download MelonLoader
+        shell: pwsh
+        run: |
+          Write-Host "Downloading MelonLoader 0.5.7..." -ForegroundColor Cyan
+
+          $mlUrl = "https://github.com/LavaGang/MelonLoader/releases/download/v0.5.7/MelonLoader.x64.zip"
+
+          Invoke-WebRequest -Uri $mlUrl -OutFile melonloader.zip
+
+          Write-Host "MelonLoader downloaded" -ForegroundColor Green
+
+          $libsPath = "src/FirewatchHeadTracking/libs"
+          Expand-Archive -Path melonloader.zip -DestinationPath melonloader-temp
+
+          # MelonLoader 0.5.7 flat layout: DLLs directly in MelonLoader/
+          Copy-Item melonloader-temp/MelonLoader/MelonLoader.dll $libsPath/
+          Copy-Item melonloader-temp/MelonLoader/0Harmony.dll $libsPath/
+
+          Remove-Item melonloader.zip
+          Remove-Item -Recurse melonloader-temp
+
+          Write-Host "MelonLoader DLLs extracted to $libsPath" -ForegroundColor Green
+
+      - name: Create Unity stub assemblies for CI
+        shell: pwsh
+        run: |
+          Write-Host "Creating Unity stub assemblies for CI build..." -ForegroundColor Cyan
+
+          $libsPath = (Resolve-Path "src/FirewatchHeadTracking/libs").Path
+          $stubsRoot = Join-Path $env:RUNNER_TEMP "unity-stubs"
+          if (Test-Path $stubsRoot) { Remove-Item -Recurse -Force $stubsRoot }
+          New-Item -ItemType Directory -Path $stubsRoot | Out-Null
+
+          $unityStubsSrc = Join-Path $libsPath "UnityStubs.cs"
+          if (-not (Test-Path $unityStubsSrc)) {
+              Write-Host "::error::UnityStubs.cs missing at $unityStubsSrc"
+              exit 1
+          }
+
+          function Build-Stub {
+              param([string]$AssemblyName, [string]$SourceFile, [string]$OutDir, [string]$WorkRoot)
+              $workDir = Join-Path $WorkRoot $AssemblyName
+              New-Item -ItemType Directory -Path $workDir -Force | Out-Null
+              $projPath = Join-Path $workDir "stub.csproj"
+              $proj = @"
+          <Project Sdk="Microsoft.NET.Sdk">
+            <PropertyGroup>
+              <TargetFramework>net35</TargetFramework>
+              <LangVersion>7.3</LangVersion>
+              <AssemblyName>$AssemblyName</AssemblyName>
+              <NoWarn>CS0169;CS0649;CS0067;CS0660;CS0661</NoWarn>
+              <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+              <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+              <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+            </PropertyGroup>
+            <ItemGroup>
+              <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net35" Version="1.0.3" PrivateAssets="all" />
+              <Compile Include="$SourceFile" />
+            </ItemGroup>
+          </Project>
+          "@
+              $proj | Out-File -FilePath $projPath -Encoding utf8
+              dotnet build $projPath -c Release -o $OutDir --nologo -v minimal | Out-Host
+              if ($LASTEXITCODE -ne 0) {
+                  Write-Host "::error::Failed to build $AssemblyName stub"
+                  exit 1
+              }
+              $producedDll = Join-Path $OutDir "$AssemblyName.dll"
+              if (-not (Test-Path $producedDll)) {
+                  Write-Host "::error::$AssemblyName.dll was not produced at $producedDll"
+                  exit 1
+              }
+              $size = (Get-Item $producedDll).Length
+              Write-Host "  Created $AssemblyName.dll ($size bytes)" -ForegroundColor Green
+              return $size
+          }
+
+          $unitySize = Build-Stub -AssemblyName "UnityEngine" -SourceFile $unityStubsSrc -OutDir $libsPath -WorkRoot $stubsRoot
+          if ($unitySize -lt 20000) {
+              Write-Host "::error::UnityEngine.dll is suspiciously small ($unitySize bytes) - stub source may not have compiled in"
+              exit 1
+          }
+
+          $emptySource = Join-Path $stubsRoot "EmptyStub.cs"
+          "// Empty stub assembly" | Out-File -FilePath $emptySource -Encoding utf8
+
+          $emptyModules = @(
+              "UnityEngine.CoreModule",
+              "UnityEngine.IMGUIModule",
+              "UnityEngine.PhysicsModule",
+              "UnityEngine.UIModule",
+              "UnityEngine.TextRenderingModule",
+              "UnityEngine.UI",
+              "Assembly-CSharp"
+          )
+          foreach ($moduleName in $emptyModules) {
+              Build-Stub -AssemblyName $moduleName -SourceFile $emptySource -OutDir $libsPath -WorkRoot $stubsRoot | Out-Null
+          }
+
+          Remove-Item (Join-Path $libsPath "*.deps.json") -Force -ErrorAction SilentlyContinue
+          Remove-Item (Join-Path $libsPath "*.pdb") -Force -ErrorAction SilentlyContinue
+          Remove-Item $stubsRoot -Recurse -Force -ErrorAction SilentlyContinue
+
+          Write-Host "--- Final libs contents ---" -ForegroundColor Cyan
+          Get-ChildItem $libsPath | Format-Table Name, Length
+
+          $verifyAsm = [System.Reflection.Assembly]::LoadFrom((Join-Path $libsPath "UnityEngine.dll"))
+          $required = @("UnityEngine.Transform","UnityEngine.Quaternion","UnityEngine.Vector3","UnityEngine.GameObject","UnityEngine.RectTransform","UnityEngine.Camera")
+          $missing = @()
+          foreach ($t in $required) {
+              if (-not $verifyAsm.GetType($t)) { $missing += $t }
+          }
+          if ($missing.Count -gt 0) {
+              Write-Host "::error::UnityEngine.dll is missing required types: $($missing -join ', ')"
+              exit 1
+          }
+          Write-Host "Unity stub verification passed ($($required.Count) types present)" -ForegroundColor Green
+
+      - name: Restore NuGet packages
+        shell: pwsh
+        run: |
+          $unityPath = "${{ github.workspace }}\src\FirewatchHeadTracking\libs"
+          dotnet restore src/FirewatchHeadTracking/FirewatchHeadTracking.csproj "-p:UnityEnginePath=$unityPath"
+
+      - name: Build Release
+        shell: pwsh
+        run: |
+          Write-Host "Building release configuration..." -ForegroundColor Cyan
+          $unityPath = "${{ github.workspace }}\src\FirewatchHeadTracking\libs"
+          dotnet build src/FirewatchHeadTracking/FirewatchHeadTracking.csproj --configuration Release "-p:UnityEnginePath=$unityPath"
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "::error::Release build failed"
+            exit 1
+          }
+
+          Write-Host "Release build succeeded" -ForegroundColor Green
+
+      - name: Package release
+        shell: pwsh
+        run: |
+          Write-Host "Packaging release..." -ForegroundColor Cyan
+          powershell -ExecutionPolicy Bypass -File scripts/package-release.ps1
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "::error::Packaging failed"
+            exit 1
+          }
+
+          Write-Host "Package created" -ForegroundColor Green
+
+      - name: Generate release notes
+        shell: pwsh
+        run: |
+          $artifactPaths = @(
+            "src/",
+            "cameraunlock-core/",
+            "scripts/install.cmd",
+            "scripts/uninstall.cmd"
+          )
+
+          & cameraunlock-core/scripts/generate-release-notes.ps1 `
+            -Version "${{ steps.version.outputs.version }}" `
+            -ArtifactPaths $artifactPaths `
+            -ProjectName "Head Tracking for Firewatch"
+
+      - name: Find release ZIPs
+        id: find_zips
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          $installerZip = "release/FirewatchHeadTracking-v$version-installer.zip"
+          $nexusZip = "release/FirewatchHeadTracking-v$version-nexus.zip"
+
+          if (-not (Test-Path $installerZip)) {
+            Write-Host "::error::Installer ZIP not found at $installerZip"
+            exit 1
+          }
+          if (-not (Test-Path $nexusZip)) {
+            Write-Host "::error::Nexus ZIP not found at $nexusZip"
+            exit 1
+          }
+
+          echo "installer_zip=$installerZip" >> $env:GITHUB_OUTPUT
+          echo "nexus_zip=$nexusZip" >> $env:GITHUB_OUTPUT
+          Write-Host "Found: $installerZip"
+          Write-Host "Found: $nexusZip"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $tag = "${{ steps.version.outputs.tag }}"
+          $installerZip = "${{ steps.find_zips.outputs.installer_zip }}"
+          $nexusZip = "${{ steps.find_zips.outputs.nexus_zip }}"
+
+          Write-Host "Creating GitHub Release for $tag..." -ForegroundColor Cyan
+
+          gh release create $tag `
+            --title "Head Tracking for Firewatch $tag" `
+            --notes-file "release-notes.txt" `
+            $installerZip `
+            $nexusZip
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "::error::Failed to create GitHub release"
+            exit 1
+          }
+
+          Write-Host "Release created successfully!" -ForegroundColor Green

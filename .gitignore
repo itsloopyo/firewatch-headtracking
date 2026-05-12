@@ -1,0 +1,15 @@
+bin/
+obj/
+*.nupkg
+src/*/libs/*.dll
+dist/
+release/
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+.pixi/
+.claude/
+.headtracking-state.json
+tools/*.dll

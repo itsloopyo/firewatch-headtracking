@@ -1,0 +1,6 @@
+<Project>
+  <!-- Set UnityEnginePath for all projects including submodules -->
+  <PropertyGroup Condition="'$(UnityEnginePath)' == ''">
+    <UnityEnginePath>$(MSBuildThisFileDirectory)src\FirewatchHeadTracking\libs</UnityEnginePath>
+  </PropertyGroup>
+</Project>

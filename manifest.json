@@ -1,0 +1,7 @@
+{
+    "name":  "FirewatchHeadTracking",
+    "version":  "0.0.0",
+    "description":  "3DOF/6DOF head tracking for Firewatch via OpenTrack",
+    "game":  "Firewatch",
+    "repository":  ""
+}
