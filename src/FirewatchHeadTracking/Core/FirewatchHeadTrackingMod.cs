@@ -96,7 +96,7 @@ namespace FirewatchHeadTracking
                 receiver,
                 processor,
                 new PoseInterpolator(),
-                HeadTrackingConfig.Smoothing,
+                () => HeadTrackingConfig.Smoothing,
                 positionProcessor,
                 new PositionInterpolator())
             {

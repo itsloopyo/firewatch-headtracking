@@ -51,8 +51,13 @@ $currentVersion = Get-CsprojVersion $csprojPath
 
 if ([string]::IsNullOrWhiteSpace($Version)) {
     Write-Host "Current version: $currentVersion" -ForegroundColor Yellow
-    Write-Host "Usage: pixi run release <major|minor|patch|X.Y.Z>" -ForegroundColor Yellow
+    Write-Host "Usage: pixi run release <major|minor|patch|nightly|X.Y.Z>" -ForegroundColor Yellow
     exit 0
+}
+
+if ($Version -eq 'nightly') {
+    & (Join-Path $scriptDir 'release-nightly.ps1')
+    exit $LASTEXITCODE
 }
 
 # --- Step 1: resolve major/minor/patch into a concrete version (or accept literal X.Y.Z) ---

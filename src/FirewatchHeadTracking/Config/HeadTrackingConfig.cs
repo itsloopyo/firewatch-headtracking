@@ -97,7 +97,7 @@ namespace FirewatchHeadTracking
             _invertPitch = _category.CreateEntry("InvertPitch", false, "Invert Pitch");
             _invertPositionX = _category.CreateEntry("InvertPositionX", false, "Invert Position X");
             _invertPositionY = _category.CreateEntry("InvertPositionY", false, "Invert Position Y");
-            _invertPositionZ = _category.CreateEntry("InvertPositionZ", false, "Invert Position Z");
+            _invertPositionZ = _category.CreateEntry("InvertPositionZ", true, "Invert Position Z");
             _positionLimitX = _category.CreateEntry("PositionLimitX", 0.30f, "Position Limit X (side-to-side, meters)");
             _positionLimitY = _category.CreateEntry("PositionLimitY", 0.20f, "Position Limit Y (up/down, meters)");
             _positionLimitZ = _category.CreateEntry("PositionLimitZ", 0.40f, "Position Limit Z forward (meters)");

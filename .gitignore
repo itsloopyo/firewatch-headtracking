@@ -11,5 +11,11 @@ release/
 *.suo
 .pixi/
 .claude/
+.lab/
+.mcp.json
+.mcp/
+AGENTS.md
+CLAUDE.md
 .headtracking-state.json
 tools/*.dll
+NEXUS_MODS.md

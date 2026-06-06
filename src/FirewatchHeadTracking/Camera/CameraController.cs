@@ -1,3 +1,4 @@
+using System;
 using CameraUnlock.Core.Data;
 using CameraUnlock.Core.Math;
 using CameraUnlock.Core.Processing;
@@ -18,7 +19,7 @@ namespace FirewatchHeadTracking
         private readonly OpenTrackReceiver _receiver;
         private readonly TrackingProcessor _processor;
         private readonly PoseInterpolator _interpolator;
-        private readonly float _smoothingFactor;
+        private readonly Func<float> _smoothingProvider;
         private readonly PositionProcessor _positionProcessor;
         private readonly PositionInterpolator _positionInterpolator;
 
@@ -52,13 +53,13 @@ namespace FirewatchHeadTracking
         /// <summary>Last applied position offset for transition fadeout.</summary>
         public Vec3 LastPositionOffset => _lastPositionOffset;
 
-        public CameraController(OpenTrackReceiver receiver, TrackingProcessor processor, PoseInterpolator interpolator, float smoothingFactor,
+        public CameraController(OpenTrackReceiver receiver, TrackingProcessor processor, PoseInterpolator interpolator, Func<float> smoothingProvider,
             PositionProcessor positionProcessor, PositionInterpolator positionInterpolator)
         {
             _receiver = receiver;
             _processor = processor;
             _interpolator = interpolator;
-            _smoothingFactor = smoothingFactor;
+            _smoothingProvider = smoothingProvider;
             _positionProcessor = positionProcessor;
             _positionInterpolator = positionInterpolator;
         }
@@ -120,22 +121,19 @@ namespace FirewatchHeadTracking
 
         private void ComputeSmoothedRotation(float dt, out float sYaw, out float sPitch, out float sRoll)
         {
-            // Get raw tracking data, interpolate between samples, then process
+            float smoothing = _smoothingProvider();
+            _processor.SmoothingFactor = smoothing;
+
+            // BaselineSmoothing floor is always applied downstream, so the
+            // interpolator is always live - the old raw-value gate would
+            // bypass it at smoothing=0 even though the processor still smooths
+            // at 0.15.
             var rawPose = _receiver.GetLatestPose();
-
-            // Always update interpolator to maintain velocity state
-            var interpolated = _interpolator.Update(rawPose, dt);
-
-            // Use interpolated pose only when smoothing absorbs prediction corrections;
-            // at smoothing=0, interpolation creates visible correction stutters
-            if (_smoothingFactor >= 0.001f)
-                rawPose = interpolated;
+            rawPose = _interpolator.Update(rawPose, dt);
 
             var processed = _processor.Process(rawPose, dt);
 
-            // Output SLERP smoothing: second smoothing layer that eliminates
-            // snap-to-raw artifacts from PoseInterpolator on remote connections.
-            _smoothedState.Update(processed.Yaw, processed.Pitch, processed.Roll, _smoothingFactor, dt,
+            _smoothedState.Update(processed.Yaw, processed.Pitch, processed.Roll, smoothing, dt,
                 out sYaw, out sPitch, out sRoll);
 
             // Tracking-mode cycle: when rotation is disabled, zero deltas so the
@@ -198,7 +196,7 @@ namespace FirewatchHeadTracking
             Vector3 viewOffset = viewMatrix.MultiplyVector(worldOffset);
             viewMatrix.m03 += viewOffset.x;
             viewMatrix.m13 -= viewOffset.y;
-            viewMatrix.m23 += viewOffset.z;
+            viewMatrix.m23 -= viewOffset.z;
         }
 
         public void ResetCamera()
