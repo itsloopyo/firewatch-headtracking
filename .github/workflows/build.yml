@@ -33,6 +33,8 @@ jobs:
 
       - name: Setup pixi
         uses: prefix-dev/setup-pixi@v0.9.6
+        with:
+          run-install: false
 
       - name: Build and package
         shell: pwsh
