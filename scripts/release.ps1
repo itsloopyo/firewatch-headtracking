@@ -27,7 +27,10 @@
 #>
 param(
     [Parameter(Position=0)]
-    [string]$Version = ""
+    [string]$Version = "",
+    # Ship a release even when there are no user-facing commits since the
+    # last tag (writes a maintenance changelog entry instead of aborting).
+    [switch]$Force
 )
 
 Set-StrictMode -Version Latest
@@ -43,6 +46,22 @@ $modCsPath = Join-Path $projectDir "src\FirewatchHeadTracking\Core\FirewatchHead
 $installCmdPath = Join-Path $projectDir "scripts\install.cmd"
 
 Import-Module (Join-Path $projectDir "cameraunlock-core\powershell\ReleaseWorkflow.psm1") -Force
+
+# Mirrors New-ChangelogFromCommits' insertion so a -Force maintenance entry
+# lands in the same place with the same shape.
+function Add-MaintenanceChangelogEntry {
+    param([string]$Path, [string]$NewVersion)
+    $date = Get-Date -Format 'yyyy-MM-dd'
+    $entry = "## [$NewVersion] - $date`n`n### Changed`n`n- Maintenance release (no user-facing changes).`n`n"
+    $changelog = Get-Content $Path -Raw
+    if ($changelog -match '(?s)(# Changelog.*?)(## \[)') {
+        $changelog = $changelog -replace '(?s)(# Changelog.*?\n\n)', "`$1$entry"
+    } else {
+        $changelog = $changelog -replace '(?s)(# Changelog.*?\n)', "`$1$entry"
+    }
+    $changelog = $changelog.TrimEnd() + "`n"
+    Set-Content $Path $changelog -NoNewline
+}
 
 Write-Host "=== Firewatch Head Tracking Release ===" -ForegroundColor Cyan
 Write-Host ""
@@ -91,8 +110,39 @@ Write-Host "Current version: $currentVersion" -ForegroundColor Gray
 Write-Host "Releasing:       $Version" -ForegroundColor Green
 Write-Host ""
 
-# --- Step 3: update version in canonical source + mirror ---
-Write-Host "[3/8] Updating version in csproj + launcher-manifest.json..." -ForegroundColor Cyan
+# --- Step 3: changelog ---
+# This is the gate that aborts when there are no user-facing commits, so run
+# it BEFORE mutating any version files or building - a failure here then
+# leaves a clean tree instead of stranding a half-applied version bump with
+# no tag.
+Write-Host "[3/8] Generating CHANGELOG entry..." -ForegroundColor Cyan
+$hasExistingTags = git tag -l 2>$null
+if (-not $hasExistingTags) {
+    $date = Get-Date -Format 'yyyy-MM-dd'
+    $firstEntry = "# Changelog`n`n## [$Version] - $date`n`nFirst release.`n"
+    Set-Content $changelogPath $firstEntry
+    Write-Host "  First release - wrote initial CHANGELOG entry" -ForegroundColor Gray
+} else {
+    try {
+        New-ChangelogFromCommits -ChangelogPath $changelogPath -Version $Version -ArtifactPaths @(
+            "src/",
+            "cameraunlock-core/",
+            "scripts/install.cmd",
+            "scripts/uninstall.cmd"
+        ) | Out-Null
+    } catch {
+        if (-not $Force) {
+            Write-Host "ERROR: $($_.Exception.Message)" -ForegroundColor Red
+            Write-Host "No user-facing changes to release. Re-run with -Force for a maintenance release." -ForegroundColor Yellow
+            exit 1
+        }
+        Write-Host "No user-facing commits since last tag - writing maintenance entry (-Force)." -ForegroundColor Yellow
+        Add-MaintenanceChangelogEntry -Path $changelogPath -NewVersion $Version
+    }
+}
+
+# --- Step 4: update version in canonical source + mirror ---
+Write-Host "[4/8] Updating version in csproj + launcher-manifest.json..." -ForegroundColor Cyan
 Set-CsprojVersion -CsprojPath $csprojPath -Version $Version
 if (Test-Path $manifestPath) {
     # Stamp mod_info.version via regex so the manifest's formatting survives.
@@ -114,28 +164,11 @@ $installCmd = Get-Content $installCmdPath -Raw
 $installCmd = [regex]::Replace($installCmd, '(set "MOD_VERSION=)[^"]+(")', "`${1}$Version`${2}")
 Set-Content -Path $installCmdPath -Value $installCmd -NoNewline
 
-# --- Step 4: build ---
-Write-Host "[4/8] Building Release via pixi..." -ForegroundColor Cyan
+# --- Step 5: build ---
+Write-Host "[5/8] Building Release via pixi..." -ForegroundColor Cyan
 pixi run build
 if ($LASTEXITCODE -ne 0) {
     throw "pixi run build failed"
-}
-
-# --- Step 5: changelog ---
-Write-Host "[5/8] Generating CHANGELOG entry..." -ForegroundColor Cyan
-$hasExistingTags = git tag -l 2>$null
-if (-not $hasExistingTags) {
-    $date = Get-Date -Format 'yyyy-MM-dd'
-    $firstEntry = "# Changelog`n`n## [$Version] - $date`n`nFirst release.`n"
-    Set-Content $changelogPath $firstEntry
-    Write-Host "  First release - wrote initial CHANGELOG entry" -ForegroundColor Gray
-} else {
-    New-ChangelogFromCommits -ChangelogPath $changelogPath -Version $Version -ArtifactPaths @(
-        "src/",
-        "cameraunlock-core/",
-        "scripts/install.cmd",
-        "scripts/uninstall.cmd"
-    ) | Out-Null
 }
 
 # --- Step 6: commit ---
