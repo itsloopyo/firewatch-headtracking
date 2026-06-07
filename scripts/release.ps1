@@ -8,7 +8,7 @@
     Eight-step release per the CameraUnlock spec:
     1. Parse version, validate semver.
     2. Verify on main, clean tree, tag does not yet exist.
-    3. Update version in csproj (canonical) + manifest.json (mirror).
+    3. Update version in csproj (canonical) + launcher-manifest.json (mirror).
     4. pixi run build (Release).
     5. Generate CHANGELOG.md from commits since the last tag.
     6. Commit "Release v<version>" with the version bump + changelog.
@@ -37,7 +37,7 @@ $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $projectDir = Split-Path -Parent $scriptDir
 
 $csprojPath = Join-Path $projectDir "src\FirewatchHeadTracking\FirewatchHeadTracking.csproj"
-$manifestPath = Join-Path $projectDir "manifest.json"
+$manifestPath = Join-Path $projectDir "launcher-manifest.json"
 $changelogPath = Join-Path $projectDir "CHANGELOG.md"
 $modCsPath = Join-Path $projectDir "src\FirewatchHeadTracking\Core\FirewatchHeadTrackingMod.cs"
 $installCmdPath = Join-Path $projectDir "scripts\install.cmd"
@@ -92,10 +92,15 @@ Write-Host "Releasing:       $Version" -ForegroundColor Green
 Write-Host ""
 
 # --- Step 3: update version in canonical source + mirror ---
-Write-Host "[3/8] Updating version in csproj + manifest.json..." -ForegroundColor Cyan
+Write-Host "[3/8] Updating version in csproj + launcher-manifest.json..." -ForegroundColor Cyan
 Set-CsprojVersion -CsprojPath $csprojPath -Version $Version
 if (Test-Path $manifestPath) {
-    Update-ManifestVersion -ManifestPath $manifestPath -Version $Version | Out-Null
+    # Stamp mod_info.version via regex so the manifest's formatting survives.
+    # "schema_version" is a number value and lacks the leading quote before
+    # "version", so this matches only mod_info.version.
+    $manifestRaw = Get-Content $manifestPath -Raw
+    $manifestRaw = [regex]::Replace($manifestRaw, '("version"\s*:\s*")[^"]+(")', "`${1}$Version`${2}")
+    Set-Content -Path $manifestPath -Value $manifestRaw -NoNewline
 }
 
 # Keep MelonInfo + ModVersion (shown in MelonLoader log) and install.cmd's

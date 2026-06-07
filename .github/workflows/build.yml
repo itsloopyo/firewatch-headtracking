@@ -24,239 +24,44 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
         with:
-          submodules: true
+          submodules: recursive
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
 
-      - name: Download MelonLoader
+      - name: Setup pixi
+        uses: prefix-dev/setup-pixi@v0.8.1
+
+      - name: Build and package
+        shell: pwsh
+        run: pixi run package
+
+      - name: Stage installer contents for artifact
         shell: pwsh
         run: |
-          Write-Host "Downloading MelonLoader 0.5.7..." -ForegroundColor Cyan
-
-          $mlUrl = "https://github.com/LavaGang/MelonLoader/releases/download/v0.5.7/MelonLoader.x64.zip"
-
-          Invoke-WebRequest -Uri $mlUrl -OutFile melonloader.zip
-
-          Write-Host "MelonLoader downloaded" -ForegroundColor Green
-
-          $libsPath = "src/FirewatchHeadTracking/libs"
-          Expand-Archive -Path melonloader.zip -DestinationPath melonloader-temp
-
-          # MelonLoader 0.5.7 flat layout: DLLs directly in MelonLoader/
-          Copy-Item melonloader-temp/MelonLoader/MelonLoader.dll $libsPath/
-          Copy-Item melonloader-temp/MelonLoader/0Harmony.dll $libsPath/
-
-          Remove-Item melonloader.zip
-          Remove-Item -Recurse melonloader-temp
-
-          Write-Host "MelonLoader DLLs extracted to $libsPath" -ForegroundColor Green
-
-      - name: Create Unity stub assemblies for CI
-        shell: pwsh
-        run: |
-          Write-Host "Creating Unity stub assemblies for CI build..." -ForegroundColor Cyan
-
-          $libsPath = (Resolve-Path "src/FirewatchHeadTracking/libs").Path
-          $stubsRoot = Join-Path $env:RUNNER_TEMP "unity-stubs"
-          if (Test-Path $stubsRoot) { Remove-Item -Recurse -Force $stubsRoot }
-          New-Item -ItemType Directory -Path $stubsRoot | Out-Null
-
-          $unityStubsSrc = Join-Path $libsPath "UnityStubs.cs"
-          if (-not (Test-Path $unityStubsSrc)) {
-              Write-Host "::error::UnityStubs.cs missing at $unityStubsSrc"
-              exit 1
-          }
-
-          function Build-Stub {
-              param([string]$AssemblyName, [string]$SourceFile, [string]$OutDir, [string]$WorkRoot)
-              $workDir = Join-Path $WorkRoot $AssemblyName
-              New-Item -ItemType Directory -Path $workDir -Force | Out-Null
-              $projPath = Join-Path $workDir "stub.csproj"
-              $proj = @"
-          <Project Sdk="Microsoft.NET.Sdk">
-            <PropertyGroup>
-              <TargetFramework>net35</TargetFramework>
-              <LangVersion>7.3</LangVersion>
-              <AssemblyName>$AssemblyName</AssemblyName>
-              <NoWarn>CS0169;CS0649;CS0067;CS0660;CS0661</NoWarn>
-              <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
-              <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-              <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-            </PropertyGroup>
-            <ItemGroup>
-              <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net35" Version="1.0.3" PrivateAssets="all" />
-              <Compile Include="$SourceFile" />
-            </ItemGroup>
-          </Project>
-          "@
-              $proj | Out-File -FilePath $projPath -Encoding utf8
-              dotnet build $projPath -c Release -o $OutDir --nologo -v minimal | Out-Host
-              if ($LASTEXITCODE -ne 0) {
-                  Write-Host "::error::Failed to build $AssemblyName stub"
-                  exit 1
-              }
-              $producedDll = Join-Path $OutDir "$AssemblyName.dll"
-              if (-not (Test-Path $producedDll)) {
-                  Write-Host "::error::$AssemblyName.dll was not produced at $producedDll"
-                  exit 1
-              }
-              $size = (Get-Item $producedDll).Length
-              Write-Host "  Created $AssemblyName.dll ($size bytes)" -ForegroundColor Green
-              return $size
-          }
-
-          $unitySize = Build-Stub -AssemblyName "UnityEngine" -SourceFile $unityStubsSrc -OutDir $libsPath -WorkRoot $stubsRoot
-          if ($unitySize -lt 20000) {
-              Write-Host "::error::UnityEngine.dll is suspiciously small ($unitySize bytes) - stub source may not have compiled in"
-              exit 1
-          }
-
-          $emptySource = Join-Path $stubsRoot "EmptyStub.cs"
-          "// Empty stub assembly" | Out-File -FilePath $emptySource -Encoding utf8
-
-          $emptyModules = @(
-              "UnityEngine.CoreModule",
-              "UnityEngine.IMGUIModule",
-              "UnityEngine.PhysicsModule",
-              "UnityEngine.UIModule",
-              "UnityEngine.TextRenderingModule",
-              "UnityEngine.UI",
-              "Assembly-CSharp"
-          )
-          foreach ($moduleName in $emptyModules) {
-              Build-Stub -AssemblyName $moduleName -SourceFile $emptySource -OutDir $libsPath -WorkRoot $stubsRoot | Out-Null
-          }
-
-          Remove-Item (Join-Path $libsPath "*.deps.json") -Force -ErrorAction SilentlyContinue
-          Remove-Item (Join-Path $libsPath "*.pdb") -Force -ErrorAction SilentlyContinue
-          Remove-Item $stubsRoot -Recurse -Force -ErrorAction SilentlyContinue
-
-          Write-Host "--- Final libs contents ---" -ForegroundColor Cyan
-          Get-ChildItem $libsPath | Format-Table Name, Length
-
-          # Hard verification: UnityEngine.dll must export the types Core.Unity uses.
-          $verifyAsm = [System.Reflection.Assembly]::LoadFrom((Join-Path $libsPath "UnityEngine.dll"))
-          $required = @("UnityEngine.Transform","UnityEngine.Quaternion","UnityEngine.Vector3","UnityEngine.GameObject","UnityEngine.RectTransform","UnityEngine.Camera")
-          $missing = @()
-          foreach ($t in $required) {
-              if (-not $verifyAsm.GetType($t)) { $missing += $t }
-          }
-          if ($missing.Count -gt 0) {
-              Write-Host "::error::UnityEngine.dll is missing required types: $($missing -join ', ')"
-              exit 1
-          }
-          Write-Host "Unity stub verification passed ($($required.Count) types present)" -ForegroundColor Green
-
-      - name: Restore NuGet packages
-        shell: pwsh
-        run: |
-          $unityPath = "${{ github.workspace }}\src\FirewatchHeadTracking\libs"
-          dotnet restore src/FirewatchHeadTracking/FirewatchHeadTracking.csproj "-p:UnityEnginePath=$unityPath"
-
-      - name: Build Debug
-        shell: pwsh
-        run: |
-          Write-Host "Building debug configuration..." -ForegroundColor Cyan
-          $unityPath = "${{ github.workspace }}\src\FirewatchHeadTracking\libs"
-          dotnet build src/FirewatchHeadTracking/FirewatchHeadTracking.csproj --configuration Debug "-p:UnityEnginePath=$unityPath"
-
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host "::error::Debug build failed"
+          $zip = Get-ChildItem release/*-installer.zip -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $zip) {
+            Write-Host "::error::No installer ZIP was produced by 'pixi run package'"
             exit 1
           }
-
-          Write-Host "Debug build succeeded" -ForegroundColor Green
-
-      - name: Build Release
-        shell: pwsh
-        run: |
-          Write-Host "Building release configuration..." -ForegroundColor Cyan
-          $unityPath = "${{ github.workspace }}\src\FirewatchHeadTracking\libs"
-          dotnet build src/FirewatchHeadTracking/FirewatchHeadTracking.csproj --configuration Release "-p:UnityEnginePath=$unityPath"
-
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host "::error::Release build failed"
-            exit 1
-          }
-
-          Write-Host "Release build succeeded" -ForegroundColor Green
-
-      - name: Verify build outputs
-        shell: pwsh
-        run: |
-          Write-Host "Verifying build outputs..." -ForegroundColor Cyan
-
-          $requiredFiles = @(
-            "src/FirewatchHeadTracking/bin/Debug/net35/FirewatchHeadTracking.dll",
-            "src/FirewatchHeadTracking/bin/Release/net35/FirewatchHeadTracking.dll"
-          )
-
-          $allExist = $true
-          foreach ($file in $requiredFiles) {
-            if (Test-Path $file) {
-              $size = (Get-Item $file).Length / 1KB
-              Write-Host "  $file ($([math]::Round($size, 2)) KB)" -ForegroundColor Green
-            } else {
-              Write-Host "  Missing: $file" -ForegroundColor Red
-              $allExist = $false
-            }
-          }
-
-          if (-not $allExist) {
-            Write-Host "::error::Some build outputs are missing"
-            exit 1
-          }
-
-          Write-Host "All build outputs verified" -ForegroundColor Green
-
-      - name: Package installer
-        shell: pwsh
-        run: |
-          Write-Host "Packaging installer ZIP..." -ForegroundColor Cyan
-          powershell -ExecutionPolicy Bypass -File scripts/package-release.ps1
-
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host "::error::Packaging failed"
-            exit 1
-          }
-
-          Write-Host "Package created" -ForegroundColor Green
-
-      - name: Stage installer contents for artifact upload
-        shell: pwsh
-        run: |
-          # GitHub's upload-artifact ALWAYS zips its input, so uploading the
-          # packaged installer zip would give users a zip-in-zip. Upload the
-          # EXTRACTED contents instead, which GitHub then zips for download -
-          # yielding a single-unzip experience that also hides the stale
-          # package-release version number that lives in the inner zip's
-          # filename.
-          $zip = Get-ChildItem release/*-installer.zip | Select-Object -First 1
-          if (-not $zip) { Write-Host "::error::No installer zip produced"; exit 1 }
-          $out = "release/artifact-contents"
-          if (Test-Path $out) { Remove-Item -Recurse -Force $out }
-          New-Item -ItemType Directory -Path $out -Force | Out-Null
-          Expand-Archive -Path $zip.FullName -DestinationPath $out -Force
-          Write-Host "Staged $($zip.Name) -> $out" -ForegroundColor Green
+          $dest = "release/artifact-contents"
+          New-Item -ItemType Directory -Path $dest -Force | Out-Null
+          Expand-Archive -Path $zip.FullName -DestinationPath $dest -Force
+          Write-Host "Staged $($zip.Name)" -ForegroundColor Green
 
       - name: Compute artifact name from ref
-        id: artifact_name
+        id: artifact
         shell: pwsh
         run: |
-          $branch = "${{ github.ref_name }}"
-          $sanitized = ($branch -replace '[^A-Za-z0-9._-]', '-').Trim('-')
-          if ([string]::IsNullOrWhiteSpace($sanitized)) { $sanitized = "build" }
-          $name = "FirewatchHeadTracking-$sanitized"
-          echo "name=$name" >> $env:GITHUB_OUTPUT
-          Write-Host "Artifact name: $name"
+          $branch = "${{ github.ref_name }}" -replace '[^A-Za-z0-9._-]', '-'
+          echo "name=FirewatchHeadTracking-$branch" >> $env:GITHUB_OUTPUT
 
       - name: Upload installer artifact
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ steps.artifact_name.outputs.name }}
+          name: ${{ steps.artifact.outputs.name }}
           path: release/artifact-contents/
           retention-days: 14
           if-no-files-found: error

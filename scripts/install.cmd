@@ -12,7 +12,7 @@ set "MOD_INTERNAL_NAME=FirewatchHeadTracking"
 set "MOD_VERSION=0.1.0"
 set "STATE_FILE=.headtracking-state.json"
 set "FRAMEWORK_TYPE=MelonLoader"
-set "MELONLOADER_MARKER=MelonLoader\net35\MelonLoader.dll"
+set "MELONLOADER_MARKER=MelonLoader\MelonLoader.dll"
 set "MOD_CONTROLS=Controls (nav cluster / chord):&echo   Home     / Ctrl+Shift+T  Recenter&echo   End      / Ctrl+Shift+Y  Toggle tracking&echo   PageUp   / Ctrl+Shift+G  Cycle tracking mode&echo   PageDown / Ctrl+Shift+H  Toggle yaw mode (world / camera-local)&echo   Insert   / Ctrl+Shift+U  Toggle reticle follow"
 :: MELONLOADER_MARKER tells us whether ML is already installed. Default is
 :: net35 (Unity 2017-era games). For IL2CPP / modern Mono games override

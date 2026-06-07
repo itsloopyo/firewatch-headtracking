@@ -1,0 +1,27 @@
+{
+  "schema_version": 2,
+  "mod_info": {
+    "name": "FirewatchHeadTracking",
+    "version": "0.1.0",
+    "game_id": "firewatch"
+  },
+  "strategy": "MelonLoader",
+  "delivery_mode": "manifest",
+
+  "loader": {
+    "archives": [
+      { "source": "vendor/melonloader/MelonLoader.x64.zip", "dest": "", "flatten": null }
+    ],
+    "detect": [ "MelonLoader/MelonLoader.dll" ],
+    "seed": []
+  },
+
+  "files": [
+    { "source": "plugins/FirewatchHeadTracking.dll", "target": "Mods/FirewatchHeadTracking.dll" },
+    { "source": "plugins/CameraUnlock.Core.dll", "target": "Mods/CameraUnlock.Core.dll" },
+    { "source": "plugins/CameraUnlock.Core.Unity.dll", "target": "Mods/CameraUnlock.Core.Unity.dll" }
+  ],
+
+  "runtime_requirements": [],
+  "dependencies": []
+}

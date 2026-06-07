@@ -1,124 +1,82 @@
 #!/usr/bin/env pwsh
-#Requires -Version 5.1
-Set-StrictMode -Version Latest
-$ErrorActionPreference = "Stop"
+# Populates src/FirewatchHeadTracking/libs/ for a game-free build.
+# MelonLoader DLLs come from the committed vendor zip. Unity reference stubs are
+# compiled from the checked-in UnityStubs.cs. No Firewatch installation needed.
 
-$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$projectRoot = Split-Path -Parent $scriptDir
-$libsDir = Join-Path $projectRoot "src\FirewatchHeadTracking\libs"
+$ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
 
-# Import shared modules
-$modulePath = Join-Path $projectRoot "cameraunlock-core\powershell\GamePathDetection.psm1"
-Import-Module $modulePath -Force
-$modLoaderPath = Join-Path $projectRoot "cameraunlock-core\powershell\ModLoaderSetup.psm1"
-Import-Module $modLoaderPath -Force
+$scriptDir    = Split-Path -Parent $MyInvocation.MyCommand.Path
+$projectRoot  = Split-Path -Parent $scriptDir
+$libsPath     = Join-Path $projectRoot 'src\FirewatchHeadTracking\libs'
+$vendorZip    = Join-Path $projectRoot 'vendor\melonloader\MelonLoader.x64.zip'
+$stubSource   = Join-Path $libsPath 'UnityStubs.cs'
 
-$gameId = 'Firewatch'
-$config = Get-GameConfig -GameId $gameId
+if (-not (Test-Path $vendorZip)) { throw "Vendored MelonLoader not found at $vendorZip" }
+if (-not (Test-Path $stubSource)) { throw "UnityStubs.cs not found at $libsPath" }
 
-# Find game installation
-$gamePath = Find-GamePath -GameId $gameId
+New-Item -ItemType Directory -Path $libsPath -Force | Out-Null
 
-if (-not $gamePath) {
-    Write-GameNotFoundError -GameName 'Firewatch' -EnvVar $config.EnvVar -SteamFolder $config.SteamFolder
-    exit 1
-}
+Write-Host "Bootstrapping build dependencies (no game install required)..." -ForegroundColor Cyan
 
-Write-Host "Found game installation at: $gamePath" -ForegroundColor Green
+# Wipe libs/ except the tracked stub source so stale game DLLs can't mask CI parity.
+Get-ChildItem -Path $libsPath -Force |
+    Where-Object { $_.Name -ne 'UnityStubs.cs' } |
+    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 
-# Find the Managed folder (contains game DLLs)
-$managedPath = Get-ManagedPath -GamePath $gamePath -DataFolder $config.DataFolder
-
-if (-not (Test-Path $managedPath)) {
-    Write-Host "ERROR: Managed folder not found at: $managedPath" -ForegroundColor Red
-    Write-Host "The game installation may be corrupted. Try verifying game files."
-    exit 1
-}
-
-Write-Host "Found Managed folder at: $managedPath" -ForegroundColor Green
-
-# Install MelonLoader if missing (0.5.7 x64 — 0.6.x crashes on Unity 2017 Mono)
-if (-not (Test-MelonLoaderInstalled -GamePath $gamePath)) {
-    Install-MelonLoader -GamePath $gamePath -Architecture x64 -Version '0.5.7'
-} else {
-    Write-Host "Found MelonLoader at: $(Join-Path $gamePath 'MelonLoader')" -ForegroundColor Green
-}
-
-# MelonLoader 0.5.7 flat layout: DLLs directly in MelonLoader/
-$melonLoaderLibPath = Join-Path $gamePath "MelonLoader"
-
-# Required DLLs from Managed folder
-$managedDlls = @(
-    "Assembly-CSharp.dll",
-    "UnityEngine.dll",
-    "UnityEngine.CoreModule.dll",
-    "UnityEngine.IMGUIModule.dll",
-    "UnityEngine.PhysicsModule.dll",
-    "UnityEngine.TextRenderingModule.dll",
-    "UnityEngine.UIModule.dll",
-    "UnityEngine.UI.dll"
-)
-
-# Required DLLs from MelonLoader folder
-$melonDlls = @(
-    "MelonLoader.dll",
-    "0Harmony.dll"
-)
-
-# Check if all libs already exist and are up-to-date
-$stale = @($managedDlls | Where-Object {
-    $dest = Join-Path $libsDir $_
-    $src = Join-Path $managedPath $_
-    -not (Test-Path $dest) -or (Get-Item $src).LastWriteTime -gt (Get-Item $dest).LastWriteTime
-})
-$staleMelon = @($melonDlls | Where-Object {
-    $dest = Join-Path $libsDir $_
-    $src = Join-Path $melonLoaderLibPath $_
-    -not (Test-Path $dest) -or (Get-Item $src).LastWriteTime -gt (Get-Item $dest).LastWriteTime
-})
-
-if ((Test-Path $libsDir) -and $stale.Count -eq 0 -and $staleMelon.Count -eq 0) {
-    Write-Host "All libs are up-to-date, skipping copy." -ForegroundColor Green
-    exit 0
-}
-
-# Create libs directory if it doesn't exist
-if (-not (Test-Path $libsDir)) {
-    New-Item -ItemType Directory -Path $libsDir -Force | Out-Null
-    Write-Host "Created libs directory: $libsDir" -ForegroundColor Green
-}
-
-# Copy managed DLLs
-$copyCount = 0
-foreach ($dll in $managedDlls) {
-    $sourcePath = Join-Path $managedPath $dll
-    $destPath = Join-Path $libsDir $dll
-
-    if (-not (Test-Path $sourcePath)) {
-        Write-Host "ERROR: Required DLL not found: $sourcePath" -ForegroundColor Red
-        exit 1
+# MelonLoader from vendor zip (0.5.7 flat layout: DLLs directly in MelonLoader/)
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$tempDir = Join-Path $env:TEMP ("fw-ml-" + [Guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
+try {
+    [System.IO.Compression.ZipFile]::ExtractToDirectory($vendorZip, $tempDir)
+    foreach ($dll in @('MelonLoader.dll', '0Harmony.dll')) {
+        $src = Join-Path $tempDir "MelonLoader\$dll"
+        if (-not (Test-Path $src)) { throw "$dll not found in vendor zip at MelonLoader\" }
+        Copy-Item $src (Join-Path $libsPath $dll) -Force
+        Write-Host "  MelonLoader: $dll" -ForegroundColor Gray
     }
-
-    Copy-Item -Path $sourcePath -Destination $destPath -Force
-    Write-Host "Copied: $dll (Managed)" -ForegroundColor Cyan
-    $copyCount++
+} finally {
+    Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue
 }
 
-# Copy MelonLoader DLLs
-foreach ($dll in $melonDlls) {
-    $sourcePath = Join-Path $melonLoaderLibPath $dll
-    $destPath = Join-Path $libsDir $dll
-
-    if (-not (Test-Path $sourcePath)) {
-        Write-Host "ERROR: Required DLL not found: $sourcePath" -ForegroundColor Red
-        exit 1
-    }
-
-    Copy-Item -Path $sourcePath -Destination $destPath -Force
-    Write-Host "Copied: $dll (MelonLoader)" -ForegroundColor Cyan
-    $copyCount++
+# Unity reference stubs compiled from UnityStubs.cs (net35 to match Firewatch's Unity version)
+function Build-Stub([string]$assemblyName, [string]$compileItem) {
+    $proj = @"
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net35</TargetFramework>
+    <LangVersion>7.3</LangVersion>
+    <AssemblyName>$assemblyName</AssemblyName>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <NoWarn>CS0169;CS0649;CS0067;CS0660;CS0661</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net35" Version="1.0.3" PrivateAssets="all" />
+    <Compile Include="$compileItem" />
+  </ItemGroup>
+</Project>
+"@
+    $projPath = Join-Path $libsPath "Stub_$assemblyName.csproj"
+    $proj | Out-File -FilePath $projPath -Encoding utf8
+    dotnet build $projPath -c Release -o $libsPath --nologo -v q
+    if ($LASTEXITCODE -ne 0) { throw "Failed to build stub $assemblyName" }
+    Remove-Item $projPath -ErrorAction SilentlyContinue
+    Write-Host "  Stub: $assemblyName.dll" -ForegroundColor Gray
 }
 
-Write-Host ""
-Write-Host "SUCCESS: Copied $copyCount DLLs to libs/" -ForegroundColor Green
-Write-Host "You can now build the project with: pixi run build"
+Build-Stub 'UnityEngine' 'UnityStubs.cs'
+
+$emptySource = Join-Path $libsPath 'EmptyStub.cs'
+'// Empty stub assembly' | Out-File -FilePath $emptySource -Encoding utf8
+foreach ($m in @(
+    'UnityEngine.CoreModule', 'UnityEngine.IMGUIModule', 'UnityEngine.PhysicsModule',
+    'UnityEngine.UIModule', 'UnityEngine.TextRenderingModule', 'UnityEngine.UI',
+    'Assembly-CSharp'
+)) { Build-Stub $m 'EmptyStub.cs' }
+
+Remove-Item $emptySource -ErrorAction SilentlyContinue
+Remove-Item (Join-Path $libsPath '*.deps.json') -Force -ErrorAction SilentlyContinue
+Remove-Item (Join-Path $libsPath '*.pdb')        -Force -ErrorAction SilentlyContinue
+
+Write-Host "Build dependencies ready." -ForegroundColor Green

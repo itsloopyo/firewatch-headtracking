@@ -27,21 +27,21 @@ foreach ($dll in $requiredDlls) {
     }
 }
 
-# Check manifest.json
-$manifest = Join-Path $projectDir "manifest.json"
+# Check launcher-manifest.json (the file lopari ingests)
+$manifest = Join-Path $projectDir "launcher-manifest.json"
 if (Test-Path $manifest) {
     try {
         $json = Get-Content $manifest | ConvertFrom-Json
-        if ($json.version) {
-            Write-Host "[OK] manifest.json version: $($json.version)" -ForegroundColor Green
+        if ($json.mod_info -and $json.mod_info.version) {
+            Write-Host "[OK] launcher-manifest.json version: $($json.mod_info.version)" -ForegroundColor Green
         } else {
-            $errors += "manifest.json missing version field"
+            $errors += "launcher-manifest.json missing mod_info.version field"
         }
     } catch {
-        $errors += "manifest.json is not valid JSON"
+        $errors += "launcher-manifest.json is not valid JSON"
     }
 } else {
-    $errors += "manifest.json not found"
+    $errors += "launcher-manifest.json not found"
 }
 
 # Check CHANGELOG.md

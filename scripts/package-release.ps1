@@ -74,6 +74,19 @@ foreach ($script in @("install.cmd", "uninstall.cmd")) {
     Write-Host "  $script" -ForegroundColor Green
 }
 
+# launcher-manifest.json at ZIP root (the file lopari ingests). Stamp
+# mod_info.version with the build's version so it can never drift from the DLLs
+# this ZIP ships. "schema_version" has a numeric value, so the regex matches
+# only mod_info.version.
+$manifestSrc = Join-Path $projectDir "launcher-manifest.json"
+if (-not (Test-Path $manifestSrc)) {
+    throw "launcher-manifest.json not found at repo root."
+}
+$manifestRaw = Get-Content $manifestSrc -Raw
+$manifestRaw = [regex]::Replace($manifestRaw, '("version"\s*:\s*")[^"]+(")', "`${1}$version`${2}")
+Set-Content -Path (Join-Path $ghStagingDir "launcher-manifest.json") -Value $manifestRaw -NoNewline
+Write-Host "  launcher-manifest.json (v$version)" -ForegroundColor Green
+
 # plugins/ (mod DLL + core DLLs - install.cmd splits into Mods/ + UserLibs/)
 $pluginsDir = Join-Path $ghStagingDir "plugins"
 New-Item -ItemType Directory -Path $pluginsDir -Force | Out-Null
