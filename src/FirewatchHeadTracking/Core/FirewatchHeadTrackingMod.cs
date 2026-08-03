@@ -30,6 +30,7 @@ namespace FirewatchHeadTracking
         private bool _isEnabled;
         private bool _hasRenderData;
         private bool _wasConnected;
+        private bool _hasConnectRecentered;
         private bool _reticleEnabled = true;
 
         // Tracking-mode cycle state: 0=both, 1=rotation only, 2=position only.
@@ -173,6 +174,15 @@ namespace FirewatchHeadTracking
 
         public override void OnUpdate()
         {
+            if (_receiver.TryConsumeRecenterRequest())
+            {
+                // The trailer packet proves the connection is live; mark the
+                // connect-recenter as already done so UpdateConnectionState
+                // doesn't immediately overwrite this center.
+                _wasConnected = true;
+                _hasConnectRecentered = true;
+                Recenter();
+            }
             _hotkeys.Update();
             UpdateConnectionState();
         }
@@ -183,8 +193,20 @@ namespace FirewatchHeadTracking
             if (isConnected && !_wasConnected)
             {
                 _wasConnected = true;
-                Recenter();
-                LoggerInstance.Msg("OpenTrack connected - recentered");
+                // Recenter only on the first connection of the session. After a
+                // tracking-loss gap the user may not be facing the screen, so
+                // re-acquisition recentering is the tracker app's job (it signals
+                // via the packet trailer).
+                if (!_hasConnectRecentered)
+                {
+                    _hasConnectRecentered = true;
+                    Recenter();
+                    LoggerInstance.Msg("OpenTrack connected - recentered");
+                }
+                else
+                {
+                    LoggerInstance.Msg("OpenTrack connected");
+                }
             }
             else if (_wasConnected && !isConnected)
             {
