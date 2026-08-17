@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.2] - 2026-08-18
+
+### Added
+
+- honor remote recenter trailer, recenter only on first connect
+
+### Fixed
+
+- show full control set in pixi install via shared -Controls
+- follow core's per-connection smoothing split
+- match stub member kinds to the shipped Unity assemblies
+
 ## [Unreleased]
 
 ### Changed
