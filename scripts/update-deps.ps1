@@ -23,7 +23,7 @@ if (-not (Test-Path $module)) {
 Import-Module $module -Force
 
 $out = Join-Path $projectDir 'vendor/melonloader'
-Refresh-VendoredLoader `
+Update-VendoredLoader `
     -Name 'melonloader' `
     -OutputDir $out `
     -OutputFileName 'MelonLoader.x64.zip' `
