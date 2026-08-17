@@ -5,6 +5,7 @@ namespace UnityEngine {
         public static void DestroyImmediate(Object obj) { }
         public static void DontDestroyOnLoad(Object target) { }
         public string name { get; set; }
+        public HideFlags hideFlags { get; set; }
         public int GetInstanceID() => 0;
         public static implicit operator bool(Object exists) => exists != null;
         public static bool operator ==(Object x, Object y) => ReferenceEquals(x, y);
@@ -70,7 +71,6 @@ namespace UnityEngine {
         public Transform transform { get; }
         public bool activeSelf { get; }
         public bool activeInHierarchy { get; }
-        public HideFlags hideFlags { get; set; }
         public T GetComponent<T>() => default;
         public Component GetComponent(System.Type type) => default;
         public T GetComponentInChildren<T>() => default;
@@ -348,7 +348,8 @@ namespace UnityEngine {
         public static void EndGroup() { }
     }
     public class GUIContent {
-        public static GUIContent none => new GUIContent();
+        // A static FIELD in the real engine; a property here emits call get_none.
+        public static GUIContent none = new GUIContent();
         public string text { get; set; }
         public Texture image { get; set; }
         public GUIContent() { }
@@ -359,7 +360,12 @@ namespace UnityEngine {
         public GUIStyle button { get; }
         public GUIStyle box { get; }
     }
-    public class Texture : Object { public int width { get; } public int height { get; } }
+    public class Texture : Object {
+        public int width { get; }
+        public int height { get; }
+        // Declared on Texture in the real engine, not on Texture2D.
+        public FilterMode filterMode { get; set; }
+    }
     public class Sprite : Object {
         public Texture2D texture { get; }
         public Rect rect { get; }
@@ -367,7 +373,6 @@ namespace UnityEngine {
     public class Texture2D : Texture {
         public Texture2D(int width, int height) { }
         public Texture2D(int width, int height, TextureFormat format, bool mipChain) { }
-        public FilterMode filterMode { get; set; }
         public void SetPixel(int x, int y, Color color) { }
         public void SetPixels(Color[] colors) { }
         public Color GetPixel(int x, int y) => default;

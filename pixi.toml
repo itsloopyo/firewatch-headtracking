@@ -10,6 +10,11 @@ sync = "git submodule update --remote cameraunlock-core"
 setup = "powershell -ExecutionPolicy Bypass -File scripts/setup-libs.ps1"
 restore = { cmd = "dotnet restore src/FirewatchHeadTracking/FirewatchHeadTracking.csproj", depends-on = ["setup"] }
 build = { cmd = "dotnet build src/FirewatchHeadTracking/FirewatchHeadTracking.csproj -c Release", depends-on = ["restore"] }
+# Checks that every member reference the build emits resolves against the
+# assemblies it binds to at runtime. Stub/engine shape drift (a property
+# declared as a field, or the reverse) compiles cleanly and only fails in
+# game. Needs the game installed; skips and succeeds without it.
+verify-refs = { cmd = "powershell -ExecutionPolicy Bypass -File cameraunlock-core/scripts/verify-assembly-refs.ps1 -GameId firewatch -BuildDir src/FirewatchHeadTracking/bin/Release", depends-on = ["build"] }
 # Bump vendored mod-loader copies to latest upstream within pinned range.
 # Manual; commit the result. CI does not run this.
 update-deps = "powershell -ExecutionPolicy Bypass -File scripts/update-deps.ps1"
