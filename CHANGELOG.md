@@ -1,5 +1,19 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- Smoothing is now two MelonPreferences entries instead of one:
+  `LocalSmoothing` (default 0.0) applies when the tracker runs on this machine,
+  `RemoteSmoothing` (default 0.15) applies when the tracker is a remote device
+  on the network. The value is selected per connection from the packet source
+  address and re-evaluated every frame, so switching trackers needs no restart.
+- Removed `Smoothing` and `PositionSmoothing`. Both new entries cover rotation
+  and position, so there is no separate position smoothing key.
+- Removed the hidden 0.15 baseline smoothing floor. Local users now get
+  zero-latency tracking by default instead of a silently enforced minimum.
+
 ## [0.1.1] - 2026-06-07
 
 ### Added

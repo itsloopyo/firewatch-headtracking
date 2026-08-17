@@ -59,7 +59,7 @@ No special hardware needed - OpenTrack's built-in **neuralnet tracker** uses any
 
 ### Phone App Setup
 
-This mod includes built-in smoothing for network jitter, so if your tracking app already provides a filtered signal you can send directly from your phone to the mod on port 4242 without needing OpenTrack on PC.
+This mod smooths network jitter with `RemoteSmoothing` (default 0.15), so if your tracking app already provides a filtered signal you can send directly from your phone to the mod on port 4242 without needing OpenTrack on PC.
 
 1. Install an OpenTrack-compatible head tracking app
 2. Configure it to send to your PC's IP on port 4242 (run `ipconfig` to find it)
@@ -118,8 +118,10 @@ PitchSensitivity = 1.0
 RollSensitivity = 1.0
 InvertPitch = false
 
-# Smoothing (0.0-1.0, remote connections add a minimum of 0.15)
-Smoothing = 0.0
+# Smoothing (0.0-1.0). Picked per connection from the tracker's source address,
+# and both values cover rotation and position.
+LocalSmoothing = 0.0          # tracker running on this machine (loopback)
+RemoteSmoothing = 0.15        # tracker on a remote device over the network
 
 # Position tracking (meters)
 PositionEnabled = true
@@ -130,7 +132,6 @@ PositionLimitX = 0.30         # side-to-side
 PositionLimitY = 0.20         # up/down
 PositionLimitZ = 0.40         # forward lean
 PositionLimitZBack = 0.10     # backward lean (smaller to prevent clipping through player model)
-PositionSmoothing = 0.15
 InvertPositionX = false
 InvertPositionY = false
 InvertPositionZ = false
@@ -154,7 +155,7 @@ ShowReticle = true            # repositions the game reticle to follow the mouse
 - Check that your firewall isn't blocking UDP port 4242
 
 **Jittery / unstable tracking:**
-- Increase the `Smoothing` value (e.g. 0.1 to 0.3)
+- Increase `RemoteSmoothing` (phone/network tracker) or `LocalSmoothing` (tracker on this PC), e.g. 0.1 to 0.3
 - Reduce sensitivity in your tracking software
 - Ensure stable lighting if using face tracking
 

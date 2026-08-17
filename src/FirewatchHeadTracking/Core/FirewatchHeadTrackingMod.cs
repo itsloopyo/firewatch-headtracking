@@ -67,7 +67,8 @@ namespace FirewatchHeadTracking
         {
             var processor = new TrackingProcessor
             {
-                SmoothingFactor = HeadTrackingConfig.Smoothing,
+                LocalSmoothing = HeadTrackingConfig.LocalSmoothing,
+                RemoteSmoothing = HeadTrackingConfig.RemoteSmoothing,
                 Sensitivity = new SensitivitySettings(
                     HeadTrackingConfig.YawSensitivity,
                     HeadTrackingConfig.PitchSensitivity,
@@ -79,7 +80,7 @@ namespace FirewatchHeadTracking
             var positionProcessor = new PositionProcessor
             {
                 TrackerPivotForward = 0.01f,
-                Settings = new PositionSettings(
+                Settings = PositionSettings.Symmetric(
                     HeadTrackingConfig.PositionSensitivityX,
                     HeadTrackingConfig.PositionSensitivityY,
                     HeadTrackingConfig.PositionSensitivityZ,
@@ -87,7 +88,8 @@ namespace FirewatchHeadTracking
                     HeadTrackingConfig.PositionLimitY,
                     HeadTrackingConfig.PositionLimitZ,
                     HeadTrackingConfig.PositionLimitZBack,
-                    HeadTrackingConfig.PositionSmoothing,
+                    HeadTrackingConfig.LocalSmoothing,
+                    HeadTrackingConfig.RemoteSmoothing,
                     invertX: HeadTrackingConfig.InvertPositionX,
                     invertY: HeadTrackingConfig.InvertPositionY,
                     invertZ: HeadTrackingConfig.InvertPositionZ),
@@ -97,7 +99,8 @@ namespace FirewatchHeadTracking
                 receiver,
                 processor,
                 new PoseInterpolator(),
-                () => HeadTrackingConfig.Smoothing,
+                () => HeadTrackingConfig.LocalSmoothing,
+                () => HeadTrackingConfig.RemoteSmoothing,
                 positionProcessor,
                 new PositionInterpolator())
             {

@@ -19,7 +19,8 @@ namespace FirewatchHeadTracking
         private readonly OpenTrackReceiver _receiver;
         private readonly TrackingProcessor _processor;
         private readonly PoseInterpolator _interpolator;
-        private readonly Func<float> _smoothingProvider;
+        private readonly Func<float> _localSmoothingProvider;
+        private readonly Func<float> _remoteSmoothingProvider;
         private readonly PositionProcessor _positionProcessor;
         private readonly PositionInterpolator _positionInterpolator;
 
@@ -35,7 +36,7 @@ namespace FirewatchHeadTracking
         /// <summary>The final world-space rotation from the last ApplyTracking call.</summary>
         public Quaternion LastModifiedRotation => _lastModifiedRotation;
 
-        // Output SLERP smoothing state (second smoothing layer for remote connections)
+        // Output SLERP smoothing state (second smoothing layer, fed the effective value)
         private readonly SmoothedEulerState _smoothedState = new SmoothedEulerState();
 
         /// <summary>Whether positional tracking is enabled.</summary>
@@ -53,13 +54,15 @@ namespace FirewatchHeadTracking
         /// <summary>Last applied position offset for transition fadeout.</summary>
         public Vec3 LastPositionOffset => _lastPositionOffset;
 
-        public CameraController(OpenTrackReceiver receiver, TrackingProcessor processor, PoseInterpolator interpolator, Func<float> smoothingProvider,
+        public CameraController(OpenTrackReceiver receiver, TrackingProcessor processor, PoseInterpolator interpolator,
+            Func<float> localSmoothingProvider, Func<float> remoteSmoothingProvider,
             PositionProcessor positionProcessor, PositionInterpolator positionInterpolator)
         {
             _receiver = receiver;
             _processor = processor;
             _interpolator = interpolator;
-            _smoothingProvider = smoothingProvider;
+            _localSmoothingProvider = localSmoothingProvider;
+            _remoteSmoothingProvider = remoteSmoothingProvider;
             _positionProcessor = positionProcessor;
             _positionInterpolator = positionInterpolator;
         }
@@ -121,13 +124,23 @@ namespace FirewatchHeadTracking
 
         private void ComputeSmoothedRotation(float dt, out float sYaw, out float sPitch, out float sRoll)
         {
-            float smoothing = _smoothingProvider();
-            _processor.SmoothingFactor = smoothing;
+            // Both providers read live config, so a smoothing edit applies without a
+            // restart. The connection flag is refreshed every frame too: switching between
+            // a local tracker and a remote device must swap which parameter applies.
+            float localSmoothing = _localSmoothingProvider();
+            float remoteSmoothing = _remoteSmoothingProvider();
+            bool isRemoteConnection = _receiver.IsRemoteConnection;
 
-            // BaselineSmoothing floor is always applied downstream, so the
-            // interpolator is always live - the old raw-value gate would
-            // bypass it at smoothing=0 even though the processor still smooths
-            // at 0.15.
+            _processor.LocalSmoothing = localSmoothing;
+            _processor.RemoteSmoothing = remoteSmoothing;
+            _processor.IsRemoteConnection = isRemoteConnection;
+            if (_positionProcessor != null)
+                _positionProcessor.IsRemoteConnection = isRemoteConnection;
+
+            float smoothing = SmoothingUtils.GetEffectiveSmoothing(localSmoothing, remoteSmoothing, isRemoteConnection);
+
+            // The interpolator is always live: it maps the tracker's sample rate onto the
+            // frame rate, which is needed even at smoothing 0.0.
             var rawPose = _receiver.GetLatestPose();
             rawPose = _interpolator.Update(rawPose, dt);
 

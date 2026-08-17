@@ -11,7 +11,8 @@ namespace FirewatchHeadTracking
         private static MelonPreferences_Entry<float> _yawSensitivity;
         private static MelonPreferences_Entry<float> _pitchSensitivity;
         private static MelonPreferences_Entry<float> _rollSensitivity;
-        private static MelonPreferences_Entry<float> _smoothing;
+        private static MelonPreferences_Entry<float> _localSmoothing;
+        private static MelonPreferences_Entry<float> _remoteSmoothing;
         private static MelonPreferences_Entry<string> _recenterKey;
         private static MelonPreferences_Entry<string> _toggleKey;
         private static MelonPreferences_Entry<string> _trackingModeKey;
@@ -31,7 +32,6 @@ namespace FirewatchHeadTracking
         private static MelonPreferences_Entry<float> _positionLimitY;
         private static MelonPreferences_Entry<float> _positionLimitZ;
         private static MelonPreferences_Entry<float> _positionLimitZBack;
-        private static MelonPreferences_Entry<float> _positionSmoothing;
 
         // Cached parsed KeyCodes. ParseKeyCode calls Enum.Parse which is reflection-backed,
         // case-insensitive, and wrapped in try/catch — far too expensive to run on every
@@ -52,7 +52,8 @@ namespace FirewatchHeadTracking
         internal static float YawSensitivity => _yawSensitivity.Value;
         internal static float PitchSensitivity => _pitchSensitivity.Value;
         internal static float RollSensitivity => _rollSensitivity.Value;
-        internal static float Smoothing => _smoothing.Value;
+        internal static float LocalSmoothing => _localSmoothing.Value;
+        internal static float RemoteSmoothing => _remoteSmoothing.Value;
         internal static KeyCode RecenterKey => GetCachedKeyCode(_recenterKey.Value, ref _recenterKeyString, ref _recenterKeyCached, KeyCode.Home);
         internal static KeyCode ToggleKey => GetCachedKeyCode(_toggleKey.Value, ref _toggleKeyString, ref _toggleKeyCached, KeyCode.End);
         internal static KeyCode ReticleToggleKey => GetCachedKeyCode(_reticleToggleKey.Value, ref _reticleToggleKeyString, ref _reticleToggleKeyCached, KeyCode.Insert);
@@ -72,7 +73,6 @@ namespace FirewatchHeadTracking
         internal static float PositionLimitY => _positionLimitY.Value;
         internal static float PositionLimitZ => _positionLimitZ.Value;
         internal static float PositionLimitZBack => _positionLimitZBack.Value;
-        internal static float PositionSmoothing => _positionSmoothing.Value;
 
         internal static void Initialize()
         {
@@ -82,7 +82,8 @@ namespace FirewatchHeadTracking
             _yawSensitivity = _category.CreateEntry("YawSensitivity", 1.0f, "Yaw Sensitivity");
             _pitchSensitivity = _category.CreateEntry("PitchSensitivity", 1.0f, "Pitch Sensitivity");
             _rollSensitivity = _category.CreateEntry("RollSensitivity", 1.0f, "Roll Sensitivity");
-            _smoothing = _category.CreateEntry("Smoothing", 0.0f, "Smoothing Factor");
+            _localSmoothing = _category.CreateEntry("LocalSmoothing", 0.0f, "Local Smoothing (tracker on this machine, 0.0-1.0)");
+            _remoteSmoothing = _category.CreateEntry("RemoteSmoothing", 0.15f, "Remote Smoothing (tracker on a network device, 0.0-1.0)");
             _recenterKey = _category.CreateEntry("RecenterKey", "Home", "Recenter Key");
             _toggleKey = _category.CreateEntry("ToggleKey", "End", "Toggle Key");
             _reticleToggleKey = _category.CreateEntry("ReticleToggleKey", "Insert", "Reticle Toggle Key");
@@ -102,7 +103,6 @@ namespace FirewatchHeadTracking
             _positionLimitY = _category.CreateEntry("PositionLimitY", 0.20f, "Position Limit Y (up/down, meters)");
             _positionLimitZ = _category.CreateEntry("PositionLimitZ", 0.40f, "Position Limit Z forward (meters)");
             _positionLimitZBack = _category.CreateEntry("PositionLimitZBack", 0.10f, "Position Limit Z back (meters)");
-            _positionSmoothing = _category.CreateEntry("PositionSmoothing", 0.15f, "Position Smoothing (0.0-1.0)");
         }
 
         private static KeyCode ParseKeyCode(string value, KeyCode fallback)
