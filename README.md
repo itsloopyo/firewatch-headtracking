@@ -134,7 +134,7 @@ PositionLimitZ = 0.40         # forward lean
 PositionLimitZBack = 0.10     # backward lean (smaller to prevent clipping through player model)
 InvertPositionX = false
 InvertPositionY = false
-InvertPositionZ = false
+InvertTrackerZ = false       # only for a tracker whose depth axis runs backwards
 
 # Reticle
 ShowReticle = true            # repositions the game reticle to follow the mouse aim point

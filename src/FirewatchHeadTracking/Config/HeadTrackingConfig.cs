@@ -27,7 +27,7 @@ namespace FirewatchHeadTracking
         private static MelonPreferences_Entry<bool> _invertPitch;
         private static MelonPreferences_Entry<bool> _invertPositionX;
         private static MelonPreferences_Entry<bool> _invertPositionY;
-        private static MelonPreferences_Entry<bool> _invertPositionZ;
+        private static MelonPreferences_Entry<bool> _invertTrackerZ;
         private static MelonPreferences_Entry<float> _positionLimitX;
         private static MelonPreferences_Entry<float> _positionLimitY;
         private static MelonPreferences_Entry<float> _positionLimitZ;
@@ -68,7 +68,7 @@ namespace FirewatchHeadTracking
         internal static bool InvertPitch => _invertPitch.Value;
         internal static bool InvertPositionX => _invertPositionX.Value;
         internal static bool InvertPositionY => _invertPositionY.Value;
-        internal static bool InvertPositionZ => _invertPositionZ.Value;
+        internal static bool InvertTrackerZ => _invertTrackerZ.Value;
         internal static float PositionLimitX => _positionLimitX.Value;
         internal static float PositionLimitY => _positionLimitY.Value;
         internal static float PositionLimitZ => _positionLimitZ.Value;
@@ -98,7 +98,12 @@ namespace FirewatchHeadTracking
             _invertPitch = _category.CreateEntry("InvertPitch", false, "Invert Pitch");
             _invertPositionX = _category.CreateEntry("InvertPositionX", false, "Invert Position X");
             _invertPositionY = _category.CreateEntry("InvertPositionY", false, "Invert Position Y");
-            _invertPositionZ = _category.CreateEntry("InvertPositionZ", true, "Invert Position Z");
+            // Renamed from InvertPositionZ, which every existing config file carries as
+            // true. It used to double as the flip into Unity's +z-forward space, a job
+            // cameraunlock-core now does at the engine boundary; left in place it would
+            // invert the lean. The key has to change so those files re-default.
+            _invertTrackerZ = _category.CreateEntry("InvertTrackerZ", false,
+                "Invert tracker Z axis (only for a tracker whose depth axis runs backwards)");
             _positionLimitX = _category.CreateEntry("PositionLimitX", 0.30f, "Position Limit X (side-to-side, meters)");
             _positionLimitY = _category.CreateEntry("PositionLimitY", 0.20f, "Position Limit Y (up/down, meters)");
             _positionLimitZ = _category.CreateEntry("PositionLimitZ", 0.40f, "Position Limit Z forward (meters)");

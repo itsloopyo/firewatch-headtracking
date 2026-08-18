@@ -92,7 +92,7 @@ namespace FirewatchHeadTracking
                     HeadTrackingConfig.RemoteSmoothing,
                     invertX: HeadTrackingConfig.InvertPositionX,
                     invertY: HeadTrackingConfig.InvertPositionY,
-                    invertZ: HeadTrackingConfig.InvertPositionZ),
+                    invertZ: HeadTrackingConfig.InvertTrackerZ),
             };
 
             return new CameraController(
