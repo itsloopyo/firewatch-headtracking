@@ -25,9 +25,6 @@ namespace FirewatchHeadTracking
             // vs. 10+ GetKey/GetKeyDown calls otherwise.
             if (!Input.anyKeyDown) return;
 
-            if (ChordHotkeys.IsActionPressed(HeadTrackingConfig.RecenterKey, ChordHotkeys.RecenterLetter))
-                _mod.Recenter();
-
             if (ChordHotkeys.IsActionPressed(HeadTrackingConfig.ToggleKey, ChordHotkeys.ToggleLetter))
                 _mod.ToggleTracking();
 

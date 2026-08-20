@@ -16,6 +16,15 @@
 
 ### Changed
 
+- Troubleshooting now points at `MelonLoader/Latest.log` and the `OpenTrack
+  connected` line in it as the first check for "no tracking response", so a
+  report can be answered from one file.
+- The mod no longer keeps a centre of its own, and the recenter hotkey is gone
+  (`Home` / `Ctrl+Shift+T`, plus the `RecenterKey` preference). Every tracker
+  app centres itself, so a mod-side centre sat in series with the tracker's and
+  the two drifted apart. Centre in your tracker app instead: OpenTrack's Center
+  bind, or the CENTER button in a phone tracker app. The mod now applies the
+  tracker pose as absolute.
 - Smoothing is now two MelonPreferences entries instead of one:
   `LocalSmoothing` (default 0.0) applies when the tracker runs on this machine,
   `RemoteSmoothing` (default 0.15) applies when the tracker is a remote device

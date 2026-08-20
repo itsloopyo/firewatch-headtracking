@@ -13,7 +13,6 @@ namespace FirewatchHeadTracking
         private static MelonPreferences_Entry<float> _rollSensitivity;
         private static MelonPreferences_Entry<float> _localSmoothing;
         private static MelonPreferences_Entry<float> _remoteSmoothing;
-        private static MelonPreferences_Entry<string> _recenterKey;
         private static MelonPreferences_Entry<string> _toggleKey;
         private static MelonPreferences_Entry<string> _trackingModeKey;
         private static MelonPreferences_Entry<string> _reticleToggleKey;
@@ -34,11 +33,9 @@ namespace FirewatchHeadTracking
         private static MelonPreferences_Entry<float> _positionLimitZBack;
 
         // Cached parsed KeyCodes. ParseKeyCode calls Enum.Parse which is reflection-backed,
-        // case-insensitive, and wrapped in try/catch — far too expensive to run on every
+        // case-insensitive, and wrapped in try/catch - far too expensive to run on every
         // Update frame. We cache the parsed value and re-parse only when the underlying
         // string actually changes (preserves live-reload semantics).
-        private static string _recenterKeyString;
-        private static KeyCode _recenterKeyCached;
         private static string _toggleKeyString;
         private static KeyCode _toggleKeyCached;
         private static string _reticleToggleKeyString;
@@ -54,7 +51,6 @@ namespace FirewatchHeadTracking
         internal static float RollSensitivity => _rollSensitivity.Value;
         internal static float LocalSmoothing => _localSmoothing.Value;
         internal static float RemoteSmoothing => _remoteSmoothing.Value;
-        internal static KeyCode RecenterKey => GetCachedKeyCode(_recenterKey.Value, ref _recenterKeyString, ref _recenterKeyCached, KeyCode.Home);
         internal static KeyCode ToggleKey => GetCachedKeyCode(_toggleKey.Value, ref _toggleKeyString, ref _toggleKeyCached, KeyCode.End);
         internal static KeyCode ReticleToggleKey => GetCachedKeyCode(_reticleToggleKey.Value, ref _reticleToggleKeyString, ref _reticleToggleKeyCached, KeyCode.Insert);
         internal static KeyCode TrackingModeKey => GetCachedKeyCode(_trackingModeKey.Value, ref _trackingModeKeyString, ref _trackingModeKeyCached, KeyCode.PageUp);
@@ -84,7 +80,6 @@ namespace FirewatchHeadTracking
             _rollSensitivity = _category.CreateEntry("RollSensitivity", 1.0f, "Roll Sensitivity");
             _localSmoothing = _category.CreateEntry("LocalSmoothing", 0.0f, "Local Smoothing (tracker on this machine, 0.0-1.0)");
             _remoteSmoothing = _category.CreateEntry("RemoteSmoothing", 0.15f, "Remote Smoothing (tracker on a network device, 0.0-1.0)");
-            _recenterKey = _category.CreateEntry("RecenterKey", "Home", "Recenter Key");
             _toggleKey = _category.CreateEntry("ToggleKey", "End", "Toggle Key");
             _reticleToggleKey = _category.CreateEntry("ReticleToggleKey", "Insert", "Reticle Toggle Key");
             _trackingModeKey = _category.CreateEntry("TrackingModeKey", "PageUp", "Tracking Mode Cycle Key");

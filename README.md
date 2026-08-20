@@ -55,7 +55,7 @@ No special hardware needed - OpenTrack's built-in **neuralnet tracker** uses any
 2. Select your webcam in the tracker settings
 3. Set output to **UDP over network** (`127.0.0.1:4242`)
 4. Start tracking before launching the game
-5. Recenter in OpenTrack via its hotkey, and press **Home** in-game to recenter the mod as needed
+5. Centre your view with OpenTrack's Center hotkey whenever the neutral pose drifts. The mod applies whatever the tracker sends, so the tracker owns the centre.
 
 ### Phone App Setup
 
@@ -73,7 +73,6 @@ Two equivalent binding sets - use whichever your keyboard has.
 
 | Action                | Nav-cluster | Chord          |
 |-----------------------|-------------|----------------|
-| Recenter              | `Home`      | `Ctrl+Shift+T` |
 | Toggle tracking       | `End`       | `Ctrl+Shift+Y` |
 | Cycle tracking mode   | `Page Up`   | `Ctrl+Shift+G` |
 | Toggle yaw mode       | `Page Down` | `Ctrl+Shift+H` |
@@ -103,7 +102,6 @@ UdpPort = 4242
 
 # Keybindings (Unity KeyCode names)
 # See https://docs.unity3d.com/ScriptReference/KeyCode.html
-RecenterKey = Home
 ToggleKey = End
 TrackingModeKey = PageUp
 YawModeKey = PageDown
@@ -149,10 +147,18 @@ ShowReticle = true            # repositions the game reticle to follow the mouse
 - Check `MelonLoader/Latest.log` for errors
 
 **No tracking response:**
+- Look for `OpenTrack connected` in `MelonLoader/Latest.log`. If it is absent, no
+  tracker packet ever reached the mod and the problem is upstream of the game.
+  MelonLoader writes that file fresh on every launch (older sessions are archived
+  under `MelonLoader/Logs/`), so it only ever holds the most recent session - send
+  it when reporting a problem.
 - Verify your tracker is running and sending to `127.0.0.1:4242`
 - Press **End** to make sure tracking is enabled
 - Check the MelonLoader console for error messages
 - Check that your firewall isn't blocking UDP port 4242
+
+**View sits off-centre:**
+- Centre it in your tracker app: OpenTrack's Center bind, or the CENTER button in a phone tracker app. The mod has no centre of its own, it applies the pose the tracker sends.
 
 **Jittery / unstable tracking:**
 - Increase `RemoteSmoothing` (phone/network tracker) or `LocalSmoothing` (tracker on this PC), e.g. 0.1 to 0.3

@@ -11,7 +11,7 @@ namespace FirewatchHeadTracking
     /// <summary>
     /// Applies head tracking rotation to the game camera additively.
     /// Rotation is applied on top of existing mouse/controller look to preserve normal controls.
-    /// Delegates to shared TrackingProcessor (sensitivity, recenter, smoothing, deadzone)
+    /// Delegates to shared TrackingProcessor (sensitivity, smoothing, deadzone)
     /// and PoseInterpolator (inter-sample interpolation).
     /// </summary>
     public sealed class CameraController
@@ -26,7 +26,6 @@ namespace FirewatchHeadTracking
 
         private Camera _targetCamera;
         private Vec3 _lastPositionOffset;
-        private bool _hasCentered;
         private Matrix4x4 _lastTrackedViewMatrix;
         private Quaternion _lastModifiedRotation;
 
@@ -68,20 +67,6 @@ namespace FirewatchHeadTracking
         }
 
         /// <summary>
-        /// Sets the current head position as the center reference.
-        /// </summary>
-        public void Recenter()
-        {
-            var rawPose = _receiver.GetLatestPose();
-            _processor.RecenterTo(rawPose);
-            _interpolator.Reset();
-            _smoothedState.Reset();
-            _positionProcessor?.SetCenter(_receiver.GetLatestPosition());
-            _positionInterpolator?.Reset();
-            _lastPositionOffset = Vec3.Zero;
-        }
-
-        /// <summary>
         /// Applies head tracking rotation to the specified camera.
         /// Called by CameraTrackingHook.OnPreCull() with the hook's camera.
         /// </summary>
@@ -89,13 +74,6 @@ namespace FirewatchHeadTracking
         {
             if (camera == null) return;
             _targetCamera = camera;
-
-            // Auto-recenter on first valid frame so the user's startup head position is neutral
-            if (!_hasCentered)
-            {
-                _hasCentered = true;
-                Recenter();
-            }
 
             // Cache hot-path accessors: Time.deltaTime and camera.transform.* each
             // cross into native on every call; we use each multiple times.
@@ -116,7 +94,7 @@ namespace FirewatchHeadTracking
 
             _targetCamera.worldToCameraMatrix = viewMatrix;
 
-            // Save the tracked matrix from the local variable — never read back
+            // Save the tracked matrix from the local variable - never read back
             // from camera.worldToCameraMatrix, which on Unity 2017 may return the
             // auto-derived matrix instead of our manually-set one.
             _lastTrackedViewMatrix = viewMatrix;
