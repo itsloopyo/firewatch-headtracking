@@ -3,4 +3,11 @@
   <PropertyGroup Condition="'$(UnityEnginePath)' == ''">
     <UnityEnginePath>$(MSBuildThisFileDirectory)src\FirewatchHeadTracking\libs</UnityEnginePath>
   </PropertyGroup>
+
+  <!-- An unresolved reference is only a warning by default, so a libs/ that
+       setup-libs.ps1 has not populated compiles on and reports ~390 CS0246
+       "type not found" errors instead of the one line that names the cause. -->
+  <PropertyGroup>
+    <MSBuildWarningsAsErrors>$(MSBuildWarningsAsErrors);MSB3245</MSBuildWarningsAsErrors>
+  </PropertyGroup>
 </Project>

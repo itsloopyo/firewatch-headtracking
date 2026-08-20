@@ -19,30 +19,31 @@ New-Item -ItemType Directory -Path $libsPath -Force | Out-Null
 
 Write-Host "Bootstrapping build dependencies (no game install required)..." -ForegroundColor Cyan
 
-# Wipe libs/ except the tracked stub source so stale game DLLs can't mask CI parity.
-Get-ChildItem -Path $libsPath -Force |
-    Where-Object { $_.Name -ne 'UnityStubs.cs' } |
-    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+# Everything is produced in a staging dir and swapped into libs/ only once all
+# of it succeeded. Building in place left libs/ empty between the wipe and the
+# stub compile: any build landing in that window resolved no Unity references
+# and buried the cause under ~390 CS0246 "type not found" errors.
+$stageDir = Join-Path $env:TEMP ("fw-libs-" + [Guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $stageDir -Force | Out-Null
 
-# MelonLoader from vendor zip (0.5.7 flat layout: DLLs directly in MelonLoader/)
-Add-Type -AssemblyName System.IO.Compression.FileSystem
-$tempDir = Join-Path $env:TEMP ("fw-ml-" + [Guid]::NewGuid().ToString('N'))
-New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
 try {
-    [System.IO.Compression.ZipFile]::ExtractToDirectory($vendorZip, $tempDir)
+    # MelonLoader from vendor zip (0.5.7 flat layout: DLLs directly in MelonLoader/)
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $unzipDir = Join-Path $stageDir '_melonloader'
+    [System.IO.Compression.ZipFile]::ExtractToDirectory($vendorZip, $unzipDir)
     foreach ($dll in @('MelonLoader.dll', '0Harmony.dll')) {
-        $src = Join-Path $tempDir "MelonLoader\$dll"
+        $src = Join-Path $unzipDir "MelonLoader\$dll"
         if (-not (Test-Path $src)) { throw "$dll not found in vendor zip at MelonLoader\" }
-        Copy-Item $src (Join-Path $libsPath $dll) -Force
+        Copy-Item $src (Join-Path $stageDir $dll) -Force
         Write-Host "  MelonLoader: $dll" -ForegroundColor Gray
     }
-} finally {
-    Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue
-}
+    Remove-Item $unzipDir -Recurse -Force
 
-# Unity reference stubs compiled from UnityStubs.cs (net35 to match Firewatch's Unity version)
-function Build-Stub([string]$assemblyName, [string]$compileItem) {
-    $proj = @"
+    Copy-Item $stubSource (Join-Path $stageDir 'UnityStubs.cs') -Force
+
+    # Unity reference stubs compiled from UnityStubs.cs (net35 to match Firewatch's Unity version)
+    function Build-Stub([string]$assemblyName, [string]$compileItem) {
+        $proj = @"
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net35</TargetFramework>
@@ -57,26 +58,31 @@ function Build-Stub([string]$assemblyName, [string]$compileItem) {
   </ItemGroup>
 </Project>
 "@
-    $projPath = Join-Path $libsPath "Stub_$assemblyName.csproj"
-    $proj | Out-File -FilePath $projPath -Encoding utf8
-    dotnet build $projPath -c Release -o $libsPath --nologo -v q
-    if ($LASTEXITCODE -ne 0) { throw "Failed to build stub $assemblyName" }
-    Remove-Item $projPath -ErrorAction SilentlyContinue
-    Write-Host "  Stub: $assemblyName.dll" -ForegroundColor Gray
+        $projPath = Join-Path $stageDir "Stub_$assemblyName.csproj"
+        $proj | Out-File -FilePath $projPath -Encoding utf8
+        dotnet build $projPath -c Release -o $stageDir --nologo -v q
+        if ($LASTEXITCODE -ne 0) { throw "Failed to build stub $assemblyName" }
+        Remove-Item $projPath -ErrorAction SilentlyContinue
+        Write-Host "  Stub: $assemblyName.dll" -ForegroundColor Gray
+    }
+
+    Build-Stub 'UnityEngine' 'UnityStubs.cs'
+
+    '// Empty stub assembly' | Out-File -FilePath (Join-Path $stageDir 'EmptyStub.cs') -Encoding utf8
+    foreach ($m in @(
+        'UnityEngine.CoreModule', 'UnityEngine.IMGUIModule', 'UnityEngine.PhysicsModule',
+        'UnityEngine.UIModule', 'UnityEngine.TextRenderingModule', 'UnityEngine.UI',
+        'Assembly-CSharp'
+    )) { Build-Stub $m 'EmptyStub.cs' }
+
+    # Wipe stale game DLLs (they'd mask CI parity) and swap the staged set in.
+    Get-ChildItem -Path $libsPath -Force |
+        Where-Object { $_.Name -ne 'UnityStubs.cs' } |
+        Remove-Item -Recurse -Force
+
+    Copy-Item (Join-Path $stageDir '*.dll') $libsPath -Force
+} finally {
+    Remove-Item $stageDir -Recurse -Force -ErrorAction SilentlyContinue
 }
-
-Build-Stub 'UnityEngine' 'UnityStubs.cs'
-
-$emptySource = Join-Path $libsPath 'EmptyStub.cs'
-'// Empty stub assembly' | Out-File -FilePath $emptySource -Encoding utf8
-foreach ($m in @(
-    'UnityEngine.CoreModule', 'UnityEngine.IMGUIModule', 'UnityEngine.PhysicsModule',
-    'UnityEngine.UIModule', 'UnityEngine.TextRenderingModule', 'UnityEngine.UI',
-    'Assembly-CSharp'
-)) { Build-Stub $m 'EmptyStub.cs' }
-
-Remove-Item $emptySource -ErrorAction SilentlyContinue
-Remove-Item (Join-Path $libsPath '*.deps.json') -Force -ErrorAction SilentlyContinue
-Remove-Item (Join-Path $libsPath '*.pdb')        -Force -ErrorAction SilentlyContinue
 
 Write-Host "Build dependencies ready." -ForegroundColor Green
