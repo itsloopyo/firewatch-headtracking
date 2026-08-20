@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.2.0] - 2026-08-20
+
+### Added
+
+- drop mod-side centring, the tracker app owns the centre
+
+### Fixed
+
+- restore the forward lean budget; InvertPositionZ becomes InvertTrackerZ
+
 ## [0.1.2] - 2026-08-18
 
 ### Added
