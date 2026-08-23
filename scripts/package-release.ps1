@@ -110,13 +110,17 @@ foreach ($file in @("MelonLoader.x64.zip", "LICENSE", "README.md")) {
     Write-Host "  vendor/melonloader/$file" -ForegroundColor Green
 }
 
-# Top-level docs
-foreach ($doc in @("README.md", "CHANGELOG.md", "THIRD-PARTY-NOTICES.md")) {
+# Top-level docs. LICENSE and THIRD-PARTY-NOTICES.md are not optional: this ZIP
+# is a binary distribution of our MIT-licensed code plus the vendored
+# MelonLoader archive, and both licences require their notices to travel with
+# it. A missing one fails the build rather than shipping a quiet violation.
+foreach ($doc in @("LICENSE", "THIRD-PARTY-NOTICES.md", "README.md", "CHANGELOG.md")) {
     $docPath = Join-Path $projectDir $doc
-    if (Test-Path $docPath) {
-        Copy-Item $docPath -Destination $ghStagingDir -Force
-        Write-Host "  $doc" -ForegroundColor Green
+    if (-not (Test-Path $docPath)) {
+        throw "Required file not found: $doc. Every published ZIP is a binary distribution and must carry it."
     }
+    Copy-Item $docPath -Destination $ghStagingDir -Force
+    Write-Host "  $doc" -ForegroundColor Green
 }
 
 $ghZipPath = Join-Path $releaseDir "FirewatchHeadTracking-v$version-installer.zip"
@@ -155,6 +159,18 @@ Write-Host "  Mods/$modDll" -ForegroundColor Green
 foreach ($libDll in $libDlls) {
     Copy-Item (Join-Path $buildOutputDir $libDll) -Destination $nexusUserLibsDir -Force
     Write-Host "  UserLibs/$libDll" -ForegroundColor Green
+}
+
+# The Nexus ZIP is a binary distribution too: the licences of everything
+# compiled into the payload require their notices to travel with it, so
+# LICENSE and THIRD-PARTY-NOTICES.md ship at its root.
+foreach ($noticeDoc in @("LICENSE", "THIRD-PARTY-NOTICES.md", "README.md")) {
+    $noticeSrc = Join-Path $projectDir $noticeDoc
+    if (-not (Test-Path $noticeSrc)) {
+        throw "Required file not found: $noticeDoc. Every published ZIP is a binary distribution and must carry it."
+    }
+    Copy-Item $noticeSrc -Destination $nexusStagingDir -Force
+    Write-Host "  $noticeDoc" -ForegroundColor Green
 }
 
 $nexusZipPath = Join-Path $releaseDir "FirewatchHeadTracking-v$version-nexus.zip"

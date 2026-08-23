@@ -2,8 +2,6 @@
 
 An unofficial MelonLoader mod that adds OpenTrack-compatible head tracking to Firewatch: look around by moving your head while your mouse still controls aim.
 
-![Mod GIF](https://raw.githubusercontent.com/itsloopyo/firewatch-headtracking/main/assets/readme-clip.gif)
-
 ## Features
 
 - **Decoupled look and aim** - head tracking moves the camera; aim stays on your mouse/controller
@@ -227,4 +225,6 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## Disclaimer
 
-This mod is not affiliated with, endorsed by, or supported by Campo Santo or Panic. "Firewatch" is a trademark of Campo Santo / Panic. Use this mod at your own risk; no warranty is provided.
+This mod is not affiliated with, endorsed by, or supported by Campo Santo or Panic. "Firewatch" is a trademark of Campo Santo / Panic, used here only to say which game the mod applies to. Use this mod at your own risk; no warranty is provided.
+
+It requires a legitimately purchased copy of the game. It ships no game code, no game assets and no proprietary DLLs, it bypasses no DRM or licence check, and it does nothing to the game beyond changing the camera the renderer sees. Third-party components that do ship with it are listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
