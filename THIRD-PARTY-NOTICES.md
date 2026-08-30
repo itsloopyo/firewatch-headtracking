@@ -31,7 +31,7 @@ under "Redistributed inside the MelonLoader archive".
 | Mono runtime and class libraries | ships with MelonLoader 0.5.7 | MIT, parts BSD-3-Clause | Inside the MelonLoader archive |
 | Boehm-Demers-Weiser GC | linked into Mono's runtime | MIT-style | Inside the MelonLoader archive |
 | Boo | ships with MelonLoader 0.5.7 | BSD-3-Clause | Inside the MelonLoader archive |
-| cameraunlock-core | 3465659888b2270addac9de0b2a728f59a00360c | MIT | Compiled into `FirewatchHeadTracking.dll` |
+| cameraunlock-core | 0f7a63455ddeb91677c9268e88fd35833aa77359 | MIT | Compiled into `FirewatchHeadTracking.dll` |
 | OpenTrack | n/a | ISC | Not bundled; UDP protocol interoperability only |
 
 ---
@@ -710,7 +710,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 Git submodule at `cameraunlock-core/`, compiled into `FirewatchHeadTracking.dll`. Our own code,
 MIT licensed, reproduced here so the notices are complete.
 
-- Pinned commit: `3465659888b2270addac9de0b2a728f59a00360c`
+- Pinned commit: `0f7a63455ddeb91677c9268e88fd35833aa77359`
 
 ```
 MIT License
