@@ -31,7 +31,7 @@ under "Redistributed inside the MelonLoader archive".
 | Mono runtime and class libraries | ships with MelonLoader 0.5.7 | MIT, parts BSD-3-Clause | Inside the MelonLoader archive |
 | Boehm-Demers-Weiser GC | linked into Mono's runtime | MIT-style | Inside the MelonLoader archive |
 | Boo | ships with MelonLoader 0.5.7 | BSD-3-Clause | Inside the MelonLoader archive |
-| cameraunlock-core | b107dc64b6bfe43b25d9c2bf867a6d31ce6b07e0 | MIT | Compiled into `FirewatchHeadTracking.dll` |
+| cameraunlock-core | 67a82e334bcf32979d17965eab4b0f37a48a6ad0 | MIT | Compiled into `FirewatchHeadTracking.dll` |
 | OpenTrack | n/a | ISC | Not bundled; UDP protocol interoperability only |
 
 ---
@@ -446,11 +446,11 @@ SOFTWARE.
 The MIT License (MIT)
 =====================
 
-Copyright © 2020 - 2022 Lava Gang
+Copyright Â© 2020 - 2022 Lava Gang
 
 Permission is hereby granted, free of charge, to any person
 obtaining a copy of this software and associated documentation
-files (the “Software”), to deal in the Software without
+files (the â€œSoftwareâ€), to deal in the Software without
 restriction, including without limitation the rights to use,
 copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of the Software, and to permit persons to whom the
@@ -460,7 +460,7 @@ conditions:
 The above copyright notice and this permission notice shall be
 included in all copies or substantial portions of the Software.
 
-THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND,
+THE SOFTWARE IS PROVIDED â€œAS ISâ€, WITHOUT WARRANTY OF ANY KIND,
 EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
 OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
 NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
@@ -477,7 +477,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 ```
 MIT License
 
-Copyright (c) 2019–2022 Bradley Grainger
+Copyright (c) 2019â€“2022 Bradley Grainger
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -710,7 +710,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 Git submodule at `cameraunlock-core/`, compiled into `FirewatchHeadTracking.dll`. Our own code,
 MIT licensed, reproduced here so the notices are complete.
 
-- Pinned commit: `b107dc64b6bfe43b25d9c2bf867a6d31ce6b07e0`
+- Pinned commit: `67a82e334bcf32979d17965eab4b0f37a48a6ad0`
 
 ```
 MIT License
