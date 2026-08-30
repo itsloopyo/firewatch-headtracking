@@ -7,7 +7,14 @@ platforms = ["win-64"]
 
 [tasks]
 sync = "git submodule update --remote cameraunlock-core"
-setup = "powershell -ExecutionPolicy Bypass -File scripts/setup-libs.ps1"
+setup-melonloader = "powershell -ExecutionPolicy Bypass -File scripts/setup-libs.ps1"
+# Unity reference stubs, compiled from the shared sources in the core submodule.
+# net35 means pre-2017.3 Unity, so no UnityEngine.InputLegacyModule is produced -
+# Input lives in UnityEngine.dll on the Unity 2017 build Firewatch ships. The
+# csproj also references the game assembly, so Assembly-CSharp joins the empty
+# module set: the mod reaches every game type through reflection and needs the
+# name to resolve, not its contents.
+setup = { cmd = 'powershell -ExecutionPolicy Bypass -Command "& cameraunlock-core/csharp/stubs/build-unity-stubs.ps1 -OutputPath src/FirewatchHeadTracking/libs -TargetFramework net35 -EmptyModule UnityEngine.CoreModule,UnityEngine.IMGUIModule,UnityEngine.UIModule,UnityEngine.TextRenderingModule,UnityEngine.AnimationModule,UnityEngine.PhysicsModule,Assembly-CSharp"', depends-on = ["setup-melonloader"] }
 restore = { cmd = "dotnet restore src/FirewatchHeadTracking/FirewatchHeadTracking.csproj", depends-on = ["setup"] }
 build = { cmd = "dotnet build src/FirewatchHeadTracking/FirewatchHeadTracking.csproj -c Release", depends-on = ["restore"] }
 # Checks that every member reference the build emits resolves against the
