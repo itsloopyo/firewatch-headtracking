@@ -1,3 +1,5 @@
+using CameraUnlock.Core.Data;
+using CameraUnlock.Core.Math;
 using MelonLoader;
 using UnityEngine;
 
@@ -78,8 +80,8 @@ namespace FirewatchHeadTracking
             _yawSensitivity = _category.CreateEntry("YawSensitivity", 1.0f, "Yaw Sensitivity");
             _pitchSensitivity = _category.CreateEntry("PitchSensitivity", 1.0f, "Pitch Sensitivity");
             _rollSensitivity = _category.CreateEntry("RollSensitivity", 1.0f, "Roll Sensitivity");
-            _localSmoothing = _category.CreateEntry("LocalSmoothing", 0.0f, "Local Smoothing (tracker on this machine, 0.0-1.0)");
-            _remoteSmoothing = _category.CreateEntry("RemoteSmoothing", 0.15f, "Remote Smoothing (tracker on a network device, 0.0-1.0)");
+            _localSmoothing = _category.CreateEntry("LocalSmoothing", SmoothingUtils.DefaultLocalSmoothing, "Local Smoothing (tracker on this machine, 0.0-1.0)");
+            _remoteSmoothing = _category.CreateEntry("RemoteSmoothing", SmoothingUtils.DefaultRemoteSmoothing, "Remote Smoothing (tracker on a network device, 0.0-1.0)");
             _toggleKey = _category.CreateEntry("ToggleKey", "End", "Toggle Key");
             _reticleToggleKey = _category.CreateEntry("ReticleToggleKey", "Insert", "Reticle Toggle Key");
             _trackingModeKey = _category.CreateEntry("TrackingModeKey", "PageUp", "Tracking Mode Cycle Key");
@@ -99,10 +101,10 @@ namespace FirewatchHeadTracking
             // invert the lean. The key has to change so those files re-default.
             _invertTrackerZ = _category.CreateEntry("InvertTrackerZ", false,
                 "Invert tracker Z axis (only for a tracker whose depth axis runs backwards)");
-            _positionLimitX = _category.CreateEntry("PositionLimitX", 0.30f, "Position Limit X (side-to-side, meters)");
-            _positionLimitY = _category.CreateEntry("PositionLimitY", 0.20f, "Position Limit Y (up/down, meters)");
-            _positionLimitZ = _category.CreateEntry("PositionLimitZ", 0.40f, "Position Limit Z forward (meters)");
-            _positionLimitZBack = _category.CreateEntry("PositionLimitZBack", 0.10f, "Position Limit Z back (meters)");
+            _positionLimitX = _category.CreateEntry("PositionLimitX", PositionSettings.Default.LimitX, "Position Limit X (side-to-side, meters)");
+            _positionLimitY = _category.CreateEntry("PositionLimitY", PositionSettings.Default.LimitY, "Position Limit Y (up/down, meters)");
+            _positionLimitZ = _category.CreateEntry("PositionLimitZ", PositionSettings.Default.LimitZ, "Position Limit Z forward (meters)");
+            _positionLimitZBack = _category.CreateEntry("PositionLimitZBack", PositionSettings.Default.LimitZBack, "Position Limit Z back (meters)");
         }
 
         private static KeyCode ParseKeyCode(string value, KeyCode fallback)
