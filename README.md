@@ -2,12 +2,14 @@
 
 ![Firewatch running with this mod](https://raw.githubusercontent.com/itsloopyo/firewatch-headtracking/main/assets/readme-clip.gif)
 
-An unofficial head tracking mod for Firewatch that moves the view with your head while your mouse or controller keeps control of look and interaction, driven by OpenTrack over UDP, with no VR headset required.
+An unofficial head tracking mod for Firewatch that moves the view with your head while your mouse or controller keeps control of look and interaction, driven by a webcam, phone, or any OpenTrack compatible tracker, with no VR headset required.
 
 ## Features
 
 - **Decoupled look and aim** - head tracking moves the camera; aim stays on your mouse/controller
 - **6DOF positional tracking** - lean and peek with head position
+- **Works with any OpenTrack compatible tracker** - free options available for PC, iOS and Android
+- **Interaction reticle compensation** - the reticle follows the actual aim point as you look around
 
 ## Requirements
 
@@ -16,6 +18,13 @@ An unofficial head tracking mod for Firewatch that moves the view with your head
 - Windows 10/11 (64-bit)
 
 ## Installation
+
+### Lopari
+
+Download [Lopari](https://lopari.app), choose **Firewatch**, and click
+**Play with head tracking**.
+
+### Standalone Installer
 
 1. Download the latest release from the [Releases page](https://github.com/itsloopyo/firewatch-headtracking/releases)
 2. Extract the ZIP anywhere
