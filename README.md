@@ -13,7 +13,7 @@ An unofficial head tracking mod for Firewatch that moves the view with your head
 
 ## Requirements
 
-- [Firewatch](https://store.steampowered.com/app/383870/Firewatch/) (Steam or Xbox/MS Store)
+- [Firewatch](https://store.steampowered.com/app/383870/Firewatch/) (Steam or Xbox Game Pass)
 - [OpenTrack](https://github.com/opentrack/opentrack) or a compatible head tracking app (smartphone, webcam, or dedicated hardware)
 - Windows 10/11 (64-bit)
 
@@ -32,7 +32,7 @@ Download [Lopari](https://lopari.app), choose **Firewatch**, and click
 4. Configure OpenTrack to output UDP to `127.0.0.1:4242`
 5. Launch the game
 
-The installer automatically finds your game via Steam registry lookup and Xbox/MS Store paths. If it can't find the game:
+The installer automatically finds your game via Steam registry lookup and Xbox Game Pass paths. If it can't find the game:
 - Set the `FIREWATCH_PATH` environment variable to your game folder, or
 - Run from command prompt: `install.cmd "D:\Games\Firewatch"`
 
